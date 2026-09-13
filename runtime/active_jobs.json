@@ -1,0 +1,21 @@
+{
+  "updated_at": "2026-09-13T23:45:13.864321+00:00",
+  "jobs": [
+    {
+      "name": "qwen25_coder_7b_download",
+      "pid": 9951,
+      "log": "logs/qwen25_coder_7b_download.log",
+      "gpu_ids": [],
+      "status": "running",
+      "command": "snapshot_download Qwen/Qwen2.5-Coder-7B-Instruct@c03e6d358207e414f1eca0bb1891e29f1db0e242"
+    },
+    {
+      "name": "openhands_fork_install",
+      "pid": 18084,
+      "log": "logs/openhands_fork_install.log",
+      "gpu_ids": [],
+      "status": "running",
+      "command": "pip install -e external/openhands-swegym-e644a2c"
+    }
+  ]
+}
