@@ -78,7 +78,8 @@ def valid(record: dict, missing_images: set[str]) -> bool:
 def main() -> None:
     missing_path = ROOT / "third_party" / "env-swe-gym" / "missing_images.txt"
     missing_images = set(missing_path.read_text().split())
-    dataset = list(load_dataset(DATASET, split=SPLIT))
+    dataset = load_dataset(DATASET, split=SPLIT)
+    dataset_fingerprint = getattr(dataset, "_fingerprint", None)
     by_repo: dict[str, list[dict]] = {repo: [] for repo in REPOS}
     for record in dataset:
         if valid(record, missing_images):
@@ -119,7 +120,7 @@ def main() -> None:
     manifest = {
         "dataset": DATASET,
         "split": SPLIT,
-        "dataset_fingerprint": getattr(dataset, "_fingerprint", None),
+        "dataset_fingerprint": dataset_fingerprint,
         "seed": SEED,
         "repos": list(REPOS),
         "excluded_missing_images": len(missing_images),

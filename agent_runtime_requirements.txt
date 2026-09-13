@@ -1,0 +1,13 @@
+# Core model runtime
+torch
+transformers
+accelerate
+peft
+
+# Agent controller and task data
+docker
+datasets
+
+# Harness: install from the pinned local checkout
+# SWE-Bench-Fork commit 242429c188fcfd06aad13fce9a54d450470bf0ac
+-e third_party/SWE-Bench-Fork
