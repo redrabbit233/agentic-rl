@@ -7,11 +7,14 @@ import io
 import json
 import os
 import tarfile
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 import docker
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from swebench.harness.constants import MAP_REPO_VERSION_TO_SPECS
 from swebench.harness.run_validation import get_validation_report
 from swebench.harness.test_spec import TestSpec, make_eval_script_list
@@ -45,7 +48,9 @@ try:
  elif action=="read_file":
   p=safe(arg.get("path")); start=max(1,int(arg.get("start",1))); end=min(start+400,max(start,int(arg.get("end",160))))
   if not p.is_file(): raise ValueError("path is not a regular file")
-  out("\n".join(p.read_text(errors="replace").splitlines()[start-1:end]))
+  lines=p.read_text(errors="replace").splitlines()
+  if start>len(lines): raise ValueError("start line is beyond end of file")
+  out("\n".join(lines[start-1:end]))
  elif action=="apply_patch":
   p,old,new=safe(arg.get("path")),arg.get("find"),arg.get("replace")
   if not p.is_file() or not isinstance(old,str) or not old or not isinstance(new,str): raise ValueError("need file path plus nonempty find and replace strings")
@@ -60,10 +65,10 @@ except Exception as e: print("TOOL_ERROR: "+str(e)); sys.exit(2)
 class Config:
  root: Path; model_path: str|None; docker_socket: str|None; max_turns: int; device: str
 
-def config_from_args() -> tuple[Config,bool]:
+def config_from_args() -> tuple[Config,tuple[bool,bool,list[str],str|None]]:
  parser=argparse.ArgumentParser(); root=os.environ.get("AGENTIC_RL_ROOT",str(Path(__file__).resolve().parents[1]))
- parser.add_argument("--project-root",default=root); parser.add_argument("--model-path",default=os.environ.get("QWEN_MODEL_PATH")); parser.add_argument("--docker-socket",default=os.environ.get("DOCKER_HOST")); parser.add_argument("--max-turns",type=int,default=int(os.environ.get("AGENT_MAX_TURNS","15"))); parser.add_argument("--device",default=os.environ.get("AGENT_DEVICE","cuda:0")); parser.add_argument("--tool-sandbox-smoke",action="store_true")
- a=parser.parse_args(); return Config(Path(a.project_root).resolve(),a.model_path,a.docker_socket,a.max_turns,a.device),a.tool_sandbox_smoke
+ parser.add_argument("--project-root",default=root); parser.add_argument("--model-path",default=os.environ.get("QWEN_MODEL_PATH")); parser.add_argument("--docker-socket",default=os.environ.get("DOCKER_HOST")); parser.add_argument("--max-turns",type=int,default=int(os.environ.get("AGENT_MAX_TURNS","15"))); parser.add_argument("--device",default=os.environ.get("AGENT_DEVICE","cuda:0")); parser.add_argument("--tool-sandbox-smoke",action="store_true"); parser.add_argument("--run-rollout",action="store_true"); parser.add_argument("--task-ids",default="conan-io__conan-10213"); parser.add_argument("--output",default=None)
+ a=parser.parse_args(); return Config(Path(a.project_root).resolve(),a.model_path,a.docker_socket,a.max_turns,a.device),(a.tool_sandbox_smoke,a.run_rollout,[x for x in a.task_ids.split(",") if x],a.output)
 
 def spec_for(instance:dict)->TestSpec:
  repo=instance["repo"].lower(); specs=MAP_REPO_VERSION_TO_SPECS[repo][instance["version"]]
@@ -97,6 +102,8 @@ class TaskContainer:
    report=get_validation_report(test_spec=self.spec,prediction={"instance_id":self.spec.instance_id,"model_patch":""},log_path=log,include_tests_status=False)[self.spec.instance_id]
    return bool(report["resolved"]),{"process_exit_code":code,"resolved":bool(report["resolved"]),"verifier_log":str(log.relative_to(self.cfg.root))}
   finally: self.execv(["rm","-f",path],20)
+ def final_patch(self)->str:
+  return self.execv(["git","diff"],30)[1]
  def close(self):
   try:self.container.remove(force=True)
   except Exception:pass
@@ -104,7 +111,8 @@ class TaskContainer:
 def sandbox_smoke(cfg:Config)->None:
  private={x["instance_id"]:x for x in json.loads((cfg.root/".private"/"swe_gym_reference_records.json").read_text())}; validated={x["instance_id"] for x in json.loads((cfg.root/"data"/"swegym_validated_tasks.json").read_text())["tasks"]}; task=next(iter(validated)); s=TaskContainer(private[task],cfg,validated)
  try:
-  checks={"list_root_rejected":not s.call("list_files",{"path":"/"})[0],"search_parent_rejected":not s.call("search_text",{"path":"../","query":"x"})[0],"tmp_read_rejected":not s.call("read_file",{"path":"/tmp/.hidden_verifier.sh"})[0],"command_substitution_literal":s.call("search_text",{"path":".","query":"$(touch /tmp/pwned)"})[0],"normal_list":s.call("list_files",{"path":"."})[0],"normal_search":s.call("search_text",{"path":".","query":"def"})[0],"normal_read":s.call("read_file",{"path":"README.md","start":1,"end":5})[0]}
+  listed,list_output,_=s.call("list_files",{"path":"."}); first_file=next((x for x in list_output.splitlines() if x),None)
+  checks={"list_root_rejected":not s.call("list_files",{"path":"/"})[0],"search_parent_rejected":not s.call("search_text",{"path":"../","query":"x"})[0],"tmp_read_rejected":not s.call("read_file",{"path":"/tmp/.hidden_verifier.sh"})[0],"command_substitution_literal":s.call("search_text",{"path":".","query":"$(touch /tmp/pwned)"})[0],"normal_list":listed,"normal_search":s.call("search_text",{"path":".","query":"def"})[0],"normal_read":bool(first_file) and s.call("read_file",{"path":first_file,"start":1,"end":5})[0]}
   checks["substitution_not_executed"]=s.execv(["test","!","-e","/tmp/pwned"],20)[0]==0; print(json.dumps(checks,indent=2)); assert all(checks.values()),checks
   s.final_hidden_verifier()
   checks["hidden_verifier_removed"]=s.execv(["python","-c","from pathlib import Path; import sys; sys.exit(any(Path('/tmp').glob('.hidden-verifier-*.sh')) )"],20)[0]==0
@@ -117,9 +125,63 @@ def classify_termination(final_called:bool, verifier_pass:bool, prior:str="MAX_T
  if final_called:return "FINAL_UNSOLVED"
  return prior
 
+SYSTEM="""You are a coding agent. Use only one JSON object per turn: {\"tool\":name,\"arguments\":object}.
+All paths are repository-relative. Tools: list_files({\"path\":\".\"}), search_text({\"query\":\"...\",\"path\":\".\"}), read_file({\"path\":\"...\",\"start\":1,\"end\":160}), apply_patch({\"path\":\"...\",\"find\":\"unique old text\",\"replace\":\"new text\"}), run_tests({}), final({\"summary\":\"...\"}). Start with search/read, edit source (never tests), then run_tests. If tests fail, use feedback before retrying."""
+
+def parse_tool(raw:str)->dict|None:
+ decoder=json.JSONDecoder(); candidates=[]; cleaned=raw.replace("<tool_call>","").replace("</tool_call>","")
+ for index,char in enumerate(cleaned):
+  if char!="{":continue
+  try:
+   value,_=decoder.raw_decode(cleaned[index:])
+   if isinstance(value,dict) and isinstance(value.get("tool"),str) and isinstance(value.get("arguments",{}),dict):candidates.append(value)
+  except json.JSONDecodeError:pass
+ return candidates[-1] if candidates else None
+
+def generate(model,tokenizer,messages:list[dict])->tuple[str,int]:
+ prompt=tokenizer.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
+ encoded=tokenizer(prompt,return_tensors="pt").to(model.device)
+ with torch.inference_mode(): output=model.generate(**encoded,max_new_tokens=384,do_sample=False,pad_token_id=tokenizer.eos_token_id)
+ tokens=output[0][encoded.input_ids.shape[1]:]
+ return tokenizer.decode(tokens,skip_special_tokens=True),int(tokens.shape[0])
+
+def run_task(model,tokenizer,public:dict,private:dict,cfg:Config,validated:set[str])->dict:
+ started=time.monotonic(); session=TaskContainer(private,cfg,validated); messages=[{"role":"system","content":SYSTEM},{"role":"user","content":"Issue:\n"+public["problem_statement"]}]
+ calls=[]; outputs=[]; patches=[]; tests=[]; total_tokens=0; invalid=0; final_called=False; termination="MAX_TURNS"; reward=None; hidden=None
+ try:
+  for turn in range(1,cfg.max_turns+1):
+   raw,tokens=generate(model,tokenizer,messages); total_tokens+=tokens; call=parse_tool(raw)
+   if not call:
+    invalid+=1; calls.append({"turn":turn,"parse_success":False,"raw":raw}); messages.extend([{"role":"assistant","content":raw},{"role":"user","content":"Invalid tool JSON. Output exactly one JSON object."}])
+    if invalid>=3:termination="INVALID_TOOL_CALL";break
+    continue
+   name,args=call["tool"],call["arguments"]; calls.append({"turn":turn,"parse_success":True,"tool":name,"arguments":args}); messages.append({"role":"assistant","content":json.dumps(call)})
+   if name=="final": final_called=True; break
+   ok,observation,meta=session.call(name,args); outputs.append({"turn":turn,"tool":name,"success":ok,"output":observation,**meta})
+   if name=="apply_patch":patches.append({"turn":turn,"success":ok,"edit":args})
+   if name=="run_tests":tests.append({"turn":turn,"success":ok,"output":observation,**meta})
+   messages.append({"role":"user","content":f"Tool {name} result success={ok}:\n{observation}"})
+  reward,hidden=session.final_hidden_verifier(); termination=classify_termination(final_called,reward,termination)
+  return {"instance_id":public["instance_id"],"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":session.final_patch(),"hidden_verifier_result":hidden,"reward":int(reward),"termination_reason":termination}
+ except Exception as exc:
+  return {"instance_id":public["instance_id"],"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":"","hidden_verifier_result":None,"reward":None,"termination_reason":"ENV_ERROR","error":repr(exc)}
+ finally:session.close()
+
 def main():
- cfg,smoke=config_from_args()
+ cfg,options=config_from_args(); smoke,run_rollout,task_ids,output_path=options
  if smoke:sandbox_smoke(cfg);return
+ if not run_rollout:raise SystemExit("Model rollout paused; pass --run-rollout after sandbox approval")
  if not cfg.model_path:raise SystemExit("--model-path or QWEN_MODEL_PATH required")
- raise SystemExit("Model rollout paused pending hardened smoke approval")
+ validated={x["instance_id"] for x in json.loads((cfg.root/"data"/"swegym_validated_tasks.json").read_text())["tasks"]}
+ if any(x not in validated for x in task_ids):raise SystemExit("all task ids must be in swegym_validated_tasks.json")
+ public={x["instance_id"]:x for x in json.loads((cfg.root/"data"/"swe_gym_train_100.json").read_text())}
+ private={x["instance_id"]:x for x in json.loads((cfg.root/".private"/"swe_gym_reference_records.json").read_text())}
+ missing=[x for x in task_ids if x not in public or x not in private]
+ if missing:raise SystemExit(f"task records unavailable: {missing}")
+ tokenizer=AutoTokenizer.from_pretrained(cfg.model_path,trust_remote_code=True)
+ model=AutoModelForCausalLM.from_pretrained(cfg.model_path,torch_dtype=torch.float16,device_map=cfg.device,trust_remote_code=True).eval()
+ out=Path(output_path) if output_path else cfg.root/"trajectories"/"qwen3_base_smoke.jsonl"; out.parent.mkdir(parents=True,exist_ok=True)
+ with out.open("w") as handle:
+  for task_id in task_ids:
+   result=run_task(model,tokenizer,public[task_id],private[task_id],cfg,validated); handle.write(json.dumps(result)+"\n"); handle.flush(); print(json.dumps({k:result.get(k) for k in ("instance_id","reward","turns","generated_tokens","wall_time","termination_reason")}))
 if __name__=="__main__":main()
