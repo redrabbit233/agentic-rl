@@ -65,10 +65,14 @@ except Exception as e: print("TOOL_ERROR: "+str(e)); sys.exit(2)
 class Config:
  root: Path; model_path: str|None; docker_socket: str|None; max_turns: int; device: str
 
-def config_from_args() -> tuple[Config,tuple[bool,bool,list[str],str|None]]:
+@dataclass(frozen=True)
+class DecodeConfig:
+ do_sample: bool; temperature: float; top_p: float
+
+def config_from_args() -> tuple[Config,tuple]:
  parser=argparse.ArgumentParser(); root=os.environ.get("AGENTIC_RL_ROOT",str(Path(__file__).resolve().parents[1]))
- parser.add_argument("--project-root",default=root); parser.add_argument("--model-path",default=os.environ.get("QWEN_MODEL_PATH")); parser.add_argument("--docker-socket",default=os.environ.get("DOCKER_HOST")); parser.add_argument("--max-turns",type=int,default=int(os.environ.get("AGENT_MAX_TURNS","15"))); parser.add_argument("--device",default=os.environ.get("AGENT_DEVICE","cuda:0")); parser.add_argument("--tool-sandbox-smoke",action="store_true"); parser.add_argument("--run-rollout",action="store_true"); parser.add_argument("--task-ids",default="conan-io__conan-10213"); parser.add_argument("--output",default=None)
- a=parser.parse_args(); return Config(Path(a.project_root).resolve(),a.model_path,a.docker_socket,a.max_turns,a.device),(a.tool_sandbox_smoke,a.run_rollout,[x for x in a.task_ids.split(",") if x],a.output)
+ parser.add_argument("--project-root",default=root); parser.add_argument("--model-path",default=os.environ.get("QWEN_MODEL_PATH")); parser.add_argument("--docker-socket",default=os.environ.get("DOCKER_HOST")); parser.add_argument("--max-turns",type=int,default=int(os.environ.get("AGENT_MAX_TURNS","15"))); parser.add_argument("--device",default=os.environ.get("AGENT_DEVICE","cuda:0")); parser.add_argument("--tool-sandbox-smoke",action="store_true"); parser.add_argument("--run-rollout",action="store_true"); parser.add_argument("--task-ids",default="conan-io__conan-10213"); parser.add_argument("--output",default=None); parser.add_argument("--summary-output",default=None); parser.add_argument("--samples-per-task",type=int,default=1); parser.add_argument("--do-sample",action="store_true"); parser.add_argument("--temperature",type=float,default=0.7); parser.add_argument("--top-p",type=float,default=0.95); parser.add_argument("--seed-base",type=int,default=20260913)
+ a=parser.parse_args(); return Config(Path(a.project_root).resolve(),a.model_path,a.docker_socket,a.max_turns,a.device),(a.tool_sandbox_smoke,a.run_rollout,[x for x in a.task_ids.split(",") if x],a.output,a.summary_output,a.samples_per_task,DecodeConfig(a.do_sample,a.temperature,a.top_p),a.seed_base)
 
 def spec_for(instance:dict)->TestSpec:
  repo=instance["repo"].lower(); specs=MAP_REPO_VERSION_TO_SPECS[repo][instance["version"]]
@@ -138,19 +142,23 @@ def parse_tool(raw:str)->dict|None:
   except json.JSONDecodeError:pass
  return candidates[-1] if candidates else None
 
-def generate(model,tokenizer,messages:list[dict])->tuple[str,int]:
+def generate(model,tokenizer,messages:list[dict],decode:DecodeConfig)->tuple[str,int]:
  prompt=tokenizer.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
  encoded=tokenizer(prompt,return_tensors="pt").to(model.device)
- with torch.inference_mode(): output=model.generate(**encoded,max_new_tokens=384,do_sample=False,pad_token_id=tokenizer.eos_token_id)
+ kwargs={"max_new_tokens":384,"do_sample":decode.do_sample,"pad_token_id":tokenizer.eos_token_id}
+ if decode.do_sample: kwargs.update({"temperature":decode.temperature,"top_p":decode.top_p})
+ with torch.inference_mode(): output=model.generate(**encoded,**kwargs)
  tokens=output[0][encoded.input_ids.shape[1]:]
  return tokenizer.decode(tokens,skip_special_tokens=True),int(tokens.shape[0])
 
-def run_task(model,tokenizer,public:dict,private:dict,cfg:Config,validated:set[str])->dict:
+def run_task(model,tokenizer,public:dict,private:dict,cfg:Config,validated:set[str],decode:DecodeConfig,sample_index:int,seed:int)->dict:
+ torch.manual_seed(seed)
+ if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
  started=time.monotonic(); session=TaskContainer(private,cfg,validated); messages=[{"role":"system","content":SYSTEM},{"role":"user","content":"Issue:\n"+public["problem_statement"]}]
  calls=[]; outputs=[]; patches=[]; tests=[]; total_tokens=0; invalid=0; final_called=False; termination="MAX_TURNS"; reward=None; hidden=None
  try:
   for turn in range(1,cfg.max_turns+1):
-   raw,tokens=generate(model,tokenizer,messages); total_tokens+=tokens; call=parse_tool(raw)
+   raw,tokens=generate(model,tokenizer,messages,decode); total_tokens+=tokens; call=parse_tool(raw)
    if not call:
     invalid+=1; calls.append({"turn":turn,"parse_success":False,"raw":raw}); messages.extend([{"role":"assistant","content":raw},{"role":"user","content":"Invalid tool JSON. Output exactly one JSON object."}])
     if invalid>=3:termination="INVALID_TOOL_CALL";break
@@ -162,13 +170,13 @@ def run_task(model,tokenizer,public:dict,private:dict,cfg:Config,validated:set[s
    if name=="run_tests":tests.append({"turn":turn,"success":ok,"output":observation,**meta})
    messages.append({"role":"user","content":f"Tool {name} result success={ok}:\n{observation}"})
   reward,hidden=session.final_hidden_verifier(); termination=classify_termination(final_called,reward,termination)
-  return {"instance_id":public["instance_id"],"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":session.final_patch(),"hidden_verifier_result":hidden,"reward":int(reward),"termination_reason":termination}
+  return {"instance_id":public["instance_id"],"sample_index":sample_index,"seed":seed,"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":session.final_patch(),"hidden_verifier_result":hidden,"reward":int(reward),"termination_reason":termination}
  except Exception as exc:
-  return {"instance_id":public["instance_id"],"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":"","hidden_verifier_result":None,"reward":None,"termination_reason":"ENV_ERROR","error":repr(exc)}
+  return {"instance_id":public["instance_id"],"sample_index":sample_index,"seed":seed,"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":"","hidden_verifier_result":None,"reward":None,"termination_reason":"ENV_ERROR","error":repr(exc)}
  finally:session.close()
 
 def main():
- cfg,options=config_from_args(); smoke,run_rollout,task_ids,output_path=options
+ cfg,options=config_from_args(); smoke,run_rollout,task_ids,output_path,summary_path,samples,decode,seed_base=options
  if smoke:sandbox_smoke(cfg);return
  if not run_rollout:raise SystemExit("Model rollout paused; pass --run-rollout after sandbox approval")
  if not cfg.model_path:raise SystemExit("--model-path or QWEN_MODEL_PATH required")
@@ -181,7 +189,13 @@ def main():
  tokenizer=AutoTokenizer.from_pretrained(cfg.model_path,trust_remote_code=True)
  model=AutoModelForCausalLM.from_pretrained(cfg.model_path,torch_dtype=torch.float16,device_map=cfg.device,trust_remote_code=True).eval()
  out=Path(output_path) if output_path else cfg.root/"trajectories"/"qwen3_base_smoke.jsonl"; out.parent.mkdir(parents=True,exist_ok=True)
+ results=[]
  with out.open("w") as handle:
   for task_id in task_ids:
-   result=run_task(model,tokenizer,public[task_id],private[task_id],cfg,validated); handle.write(json.dumps(result)+"\n"); handle.flush(); print(json.dumps({k:result.get(k) for k in ("instance_id","reward","turns","generated_tokens","wall_time","termination_reason")}))
+   for sample_index in range(samples):
+    trajectory_index=len(results); seed=seed_base+trajectory_index
+    result=run_task(model,tokenizer,public[task_id],private[task_id],cfg,validated,decode,sample_index,seed); results.append(result); handle.write(json.dumps(result)+"\n"); handle.flush(); print(json.dumps({k:result.get(k) for k in ("instance_id","sample_index","seed","reward","turns","generated_tokens","wall_time","termination_reason")}))
+ if summary_path:
+  vectors={task_id:[r["reward"] for r in results if r["instance_id"]==task_id] for task_id in task_ids}
+  groups=list(vectors.values()); summary={"model_path":cfg.model_path,"task_ids":task_ids,"samples_per_task":samples,"seed_base":seed_base,"decode":{"do_sample":decode.do_sample,"temperature":decode.temperature,"top_p":decode.top_p},"total_trajectories":len(results),"positive_trajectories":sum(r["reward"]==1 for r in results),"reward_vectors":vectors,"mixed_groups":sum(0 in x and 1 in x for x in groups),"all_fail_groups":sum(all(v==0 for v in x) for x in groups),"all_pass_groups":sum(all(v==1 for v in x) for x in groups),"avg_turns":sum(r["turns"] for r in results)/len(results),"avg_generated_tokens":sum(r["generated_tokens"] for r in results)/len(results),"avg_rollout_seconds":sum(r["wall_time"] for r in results)/len(results),"valid_patch_tasks":sum(bool(r["patch_history"]) for r in results),"tool_parse_success":sum(c["parse_success"] for r in results for c in r["tool_calls"]),"tool_calls":sum(len(r["tool_calls"]) for r in results),"tool_execution_success":sum(o["success"] for r in results for o in r["tool_outputs"]),"tool_executions":sum(len(r["tool_outputs"]) for r in results),"pytest_calls":sum(len(r["test_history"]) for r in results)}; Path(summary_path).write_text(json.dumps(summary,indent=2)+"\n")
 if __name__=="__main__":main()
