@@ -34,3 +34,11 @@ also excluded.
 
 See the documentation for environment requirements and exact safety
 constraints before executing the scripts.
+
+## Current cold-start result
+
+The fixed 5-task × G=4 stochastic policy-support probe produced 0 positive
+trajectories out of 20. All five reward groups were all-fail. The runtime and
+tool sandbox operated correctly, but this Qwen3-4B policy did not expose a
+successful trajectory on this pilot; GRPO should not be started from it.
+See `results/qwen3_4b_coldstart_g4_public.json` for the public aggregate.

@@ -1,0 +1,31 @@
+{
+  "experiment": "Qwen3-4B SWE-Gym coding-agent policy-support probe",
+  "task_count": 5,
+  "samples_per_task": 4,
+  "total_trajectories": 20,
+  "decode": {
+    "do_sample": true,
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "seed_base": 20260913
+  },
+  "positive_trajectories": 0,
+  "reward_vectors": {
+    "conan-io__conan-10213": [0, 0, 0, 0],
+    "dask__dask-7418": [0, 0, 0, 0],
+    "getmoto__moto-6953": [0, 0, 0, 0],
+    "pydantic__pydantic-5529": [0, 0, 0, 0],
+    "pydantic__pydantic-5591": [0, 0, 0, 0]
+  },
+  "mixed_groups": 0,
+  "all_fail_groups": 5,
+  "all_pass_groups": 0,
+  "avg_turns": 13.3,
+  "avg_generated_tokens": 483.4,
+  "avg_rollout_seconds": 42.871,
+  "valid_patch_trajectories": 9,
+  "tool_call_parse_success": "266/266",
+  "tool_execution_success": "221/256",
+  "pytest_calls": 21,
+  "conclusion": "No positive trajectory was found; do not start GRPO from this policy."
+}
