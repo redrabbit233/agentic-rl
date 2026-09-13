@@ -1,0 +1,11 @@
+.venv/
+.private/
+workspaces/
+logs/
+checkpoints/
+trajectories/
+results/*.jsonl
+__pycache__/
+.pytest_cache/
+environments/sandbox_probe/
+third_party/

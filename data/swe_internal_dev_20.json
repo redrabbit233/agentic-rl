@@ -1,0 +1,302 @@
+[
+  {
+    "instance_id": "getmoto__moto-5154",
+    "repo": "getmoto/moto",
+    "base_commit": "12843c4eaedcfc524538eb43483fbb011bf05c85",
+    "version": "3.1",
+    "problem_statement": "Add support for EC2 state 'OutOfService' in moto ELB 'describe_instance_health'\nAdd support for instance state 'OutOfService' in moto ELB 'describe_instance_health'\r\nhttps://github.com/spulec/moto/blob/master/moto/elb/responses.py#L260\r\n\r\nmocking doesn't have support for 'OutOfService', once an instance is registered to an ELB its state is shown as 'InService'.\r\n\r\nThe state of EC2 instance in 'describe_instance_health' should be changed to 'OutOfService' if the EC2 instance is stopped/fails ELB healthcheck.\n",
+    "problem_statement_sha256": "76b4ce090014f9b2dd4228ff2efa7cb08a67b3be9b589e4b1de8e19ca0736cb6",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 39,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "getmoto__moto-6905",
+    "repo": "getmoto/moto",
+    "base_commit": "760e28bb7f6934a4c1ee664eee2449c216c06d9b",
+    "version": "4.2",
+    "problem_statement": "EC2 run instances with --iam-instance-profile strange error\nI encounter strange behavior with `aws ec2 run-instances` which includes `--iam-instance-profile` flag.\r\nWith simple\r\n```\r\naws ec2 run-instances --image-id ami-example1234567890\r\n```\r\n\r\nit works fine, instance is created. I get 200 response in log:\r\n```\r\n192.168.1.1 - - [11/Oct/2023 11:52:26] \"POST / HTTP/1.1\" 200 -\r\n```\r\n\r\nIn case I include `--iam-instance-profile` flag like:\r\n```\r\naws ec2 run-instances --image-id ami-example1234567890 --iam-instance-profile Name=\"arn:aws:iam::123456789012:instance-profile/admin-role\"\r\n```\r\nor any `Name` content like:\r\n```\r\naws ec2 run-instances --image-id ami-example1234567890 --iam-instance-profile Name=\"test\"\r\n```\r\n\r\nI get error `An error occurred (NoSuchEntity) when calling the RunInstances operation: Instance profile arn:aws:iam::123456789012:instance-profile/admin-role not found`. \r\n\r\nWith log:\r\n```\r\n192.168.65.1 - - [11/Oct/2023 11:52:39] \"POST / HTTP/1.1\" 404 -\r\n```\r\n\r\nBut even with 404 error new instance is created.\r\nI'm not against creating instance without validating such rare flag, but it fails to return correct 200 response.\r\n\r\nI use docker image with version `4.2.5`.\r\nAll aws client commands I run against container like:\r\n```\r\naws --endpoint-url=http://localhost:5000 ec2 run-instances\r\n```\n",
+    "problem_statement_sha256": "c4466da48e7724e1a663d1edc57caceb9e1b5af8e8dcef3954164113d7aedf6f",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 93,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "getmoto__moto-5812",
+    "repo": "getmoto/moto",
+    "base_commit": "031f89dee00c6a5e01ac41c430d701508988f146",
+    "version": "4.0",
+    "problem_statement": "Multiple iot-data publish calls lead to None topic\nCalling\r\n`boto3.client('iot-data', region_name='eu-central-1').publish(\r\n        topic = my_topic,\r\n        payload = my_payload,\r\n        qos = 1\r\n)`\r\n\r\nMore than once, causes the topic for all calls after the first one to be `None` inside `moto.iotdata.models.iotdata_backends[moto.core.DEFAULT_ACCOUNT_ID][MY_REGION].published_payloads`\r\n\r\n### Example:\r\n\r\n```python\r\nimport boto3\r\nfrom moto import (\r\n    mock_iotdata\r\n)\r\nimport moto.core\r\n\r\nwith mock_iotdata():\r\n    iot = boto3.client('iot-data', region_name='eu-central-1')\r\n    iot.publish(\r\n        topic = f\"hello/world\",\r\n        payload = \"something\",\r\n        qos = 1\r\n    )\r\n    iot.publish(\r\n        topic = f\"new/world\",\r\n        payload = \"nothing\",\r\n        qos = 1\r\n    )\r\n    iot.publish(\r\n        topic = f\"old/world\",\r\n        payload = \"anything\",\r\n        qos = 1\r\n    )\r\n\r\n    mock_backend = moto.iotdata.models.iotdata_backends[moto.core.DEFAULT_ACCOUNT_ID]['eu-central-1']\r\n    print(mock_backend.published_payloads)\r\n```\r\n### Output:\r\n```\r\n[('hello/world', 'something'), (None, 'nothing'), (None, 'anything')]\r\n```\r\n\r\n### Debug attempt\r\nI tried to understand what was going on and I found out that inside `botocore_subber.py` there is a `matchers.pop(found_index)` call that removes a regex to select the appropriate callback to dispatch the publish function so that only the first time the right dispatcher gets called.\r\nI don't completely understand the goal of that call so it might be correct, but if I comment it out, the topic gets filled correctly.\r\n\r\n### versions\r\n```\r\nPython 3.8.10\r\nmoto==4.0.12\r\n```\r\n\r\nThanks\n",
+    "problem_statement_sha256": "64ce2e6d946fd26f34ec682cd6ee893ecbe9fac67ca00fd978fabd55b6c615d8",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 3,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "getmoto__moto-5511",
+    "repo": "getmoto/moto",
+    "base_commit": "3679521d76c54f0ca5fe635956bea2d8fc3192a9",
+    "version": "4.0",
+    "problem_statement": "Lambda Permission does not support PrincipalOrgID condition\n## Reporting Bugs\r\n\r\n### Moto Version\r\n3.1.17\r\n   \r\n### Issue:\r\nUnable to create Lambda policy with PrincipalOrgID condition.\r\n   \r\n### Current behavior\r\n\r\n1. Create a lambda function with custom policy via add_permission API (ref: [test_add_function_permission](https://github.com/spulec/moto/blob/3d913f8f1568e4232ffaab06e261b88bb1142a75/tests/test_awslambda/test_lambda_policy.py#L18))\r\n2. Use `SourceArn` attribute \r\n3. Make `get_policy` API\r\n\r\n- API Call\r\n\r\n`conn.add_permission(\r\n        FunctionName=name_or_arn,\r\n        StatementId=\"2\",\r\n        Action=\"lambda:InvokeFunction\",\r\n        Principal=\"lambda.amazonaws.com\",\r\n        SourceArn=f\"arn:aws:lambda:us-west-2:{ACCOUNT_ID}:function:helloworld\",\r\n    )\r\n`\r\n\r\n- Policy Created (AS expected):\r\n\r\n`\r\n{\r\n    \"Version\": \"2012-10-17\",\r\n    \"Id\": \"default\",\r\n    \"Statement\": [\r\n        {\r\n            \"Action\": \"lambda:InvokeFunction\",\r\n            \"Principal\": \"432143214321\",\r\n            \"Effect\": \"Allow\",\r\n            \"Resource\": \"arn:aws:lambda:eu-west-1:123456789012:function:function-default-policy\",\r\n            \"Sid\": \"1\",\r\n            \"Condition\": {\r\n                \"ArnLike\": {\r\n                    \"AWS:SourceArn\": \"arn:aws:lambda:us-west-2:account-id:function:helloworld\"\r\n                }\r\n            }\r\n        }\r\n    ]\r\n}\r\n` \r\n\r\n### How to produce this issue?\r\n\r\n1. Create a lambda function with policy with Condition using PrincipalOrgID context key.\r\n2. In `add_permission` API use `PrincipalOrgID` attribute to grant permissions (to all the Amazon Web Services accounts under this organization). \r\n3. Make `get_policy` API \r\n\r\n- API Call\r\n\r\n`conn.add_permission(\r\n            FunctionName=name_or_arn,\r\n            StatementId=\"StatementId\",\r\n            Action=\"lambda:ListTags\",\r\n            Principal=\"arn:aws:iam::123456789012:user/SomeUser\",\r\n            PrincipalOrgID='o-a1b2c3d4e5'\r\n        )`\r\n\r\n- Policy created (NOT Expected):\r\n\r\n`{\r\n    \"Version\": \"2012-10-17\",\r\n    \"Id\": \"default\",\r\n    \"Statement\": [\r\n        {\r\n            \"Action\": \"lambda:ListTags\",\r\n            \"Principal\": \"arn:aws:iam::123456789012:user/SomeUser\",\r\n            \"PrincipalOrgID\": \"o-a1b2c3d4e5\",\r\n            \"Effect\": \"Allow\",\r\n            \"Resource\": \"arn:aws:lambda:eu-west-1:123456789012:function:function-default-policy\",\r\n            \"Sid\": \"1\"\r\n        }\r\n    ]\r\n}`\r\n\r\n- Expected Policy:\r\n\r\n`{\r\n            \"Sid\": \"StatementId\",\r\n            \"Effect\": \"Allow\",\r\n            \"Principal\": {\r\n                \"AWS\": \"arn:aws:iam::123456789012:user/SomeUser\"\r\n            },\r\n            \"Action\": \"lambda:ListTags\",\r\n            \"Resource\": \"arn:aws:lambda:eu-west-1:123456789012:function:function-default-policy\",\r\n            \"Condition\": {\r\n                \"StringEquals\": {\r\n                    \"aws:PrincipalOrgID\": \"o-t1y3bu06fa\"\r\n                }\r\n            }\r\n        }`\r\n\r\n\n",
+    "problem_statement_sha256": "1891d1fb9c86da0f2bea86e9a96a111a96529535fa5663b0c14055213f61decb",
+    "fail_to_pass_count": 3,
+    "pass_to_pass_count": 9,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "getmoto__moto-7509",
+    "repo": "getmoto/moto",
+    "base_commit": "b22683eb98cb3de13d44f5348665f44539afa36f",
+    "version": "5.0",
+    "problem_statement": "VPC Endpoint services are missing bedrock related endpoints\nAttempting to call the `describe_vpc_endpoint_services` operation results in an error:\r\n\r\n`botocore.exceptions.ClientError: An error occurred (InvalidServiceName) when calling the DescribeVpcEndpointServices operation: The Vpc Endpoint Service 'com.amazonaws.us-east-1.bedrock-agent-runtime' does not exist`\r\n\r\nThis is seemingly due to this list: https://github.com/getmoto/moto/blob/565442e23d642fc379cc1caf2dc0ce1280d6c919/moto/ec2/models/vpcs.py#L43 missing the service `bedrock-egent-runtime`.\r\n\r\nOther services may be missing, specifically I know of `bedrock`, `bedrock-runtime`, and `bedrock-agent` in addition to `bedrock-agent-runtime`.\n",
+    "problem_statement_sha256": "eaf7c109b4b55a875f13b59a916621c0d3b1737cae8fe70230f1dea4de90f867",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 2,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "pydantic__pydantic-8734",
+    "repo": "pydantic/pydantic",
+    "base_commit": "3fda9d65ee69dd1ba97d1fdf08caa9dcc5e58e2b",
+    "version": "2.7",
+    "problem_statement": "__pydantic_config__ ignored in `TypeAdapter` for `TypedDicts`\n### Initial Checks\n\n- [X] I confirm that I'm using Pydantic V2\n\n### Description\n\nWhen generating json schema with pydantic, `__pydantic_config__` is ignored in the outputted json, [contrary to what the docs explain](https://docs.pydantic.dev/2.6/errors/usage_errors/#type-adapter-config-unused).\r\n\r\nIn the below example I set `title`, however I've found it won't work with any `ConfigDict.json_schema_extra` either, which is really what I require for my uses.\n\n### Example Code\n\n```Python\nfrom typing_extensions import TypedDict\r\n\r\nfrom pydantic import ConfigDict, TypeAdapter\r\n\r\n\r\n# Tested on both my system and the live runner https://docs.pydantic.dev/2.6/errors/usage_errors/#type-adapter-config-unused\r\n\r\nclass MyTypedDict(TypedDict):\r\n    x: int\r\n\r\n    # or `model_config = ...` for BaseModel\r\n    __pydantic_config__ = ConfigDict(title=\"foobar\")\r\n\r\n\r\ntype_adapter = TypeAdapter(MyTypedDict)\r\nprint(type_adapter.json_schema()) # The outputted json doesn't have the correct title.\r\n\r\n# OUTPUT\r\n# pydantic version: v2.6.0, pydantic-core version: v2.16.1\r\n# {'properties': {'x': {'title': 'X', 'type': 'integer'}}, 'required': ['x'], 'title': 'MyTypedDict', 'type': 'object'}\n```\n\n\n### Python, Pydantic & OS Version\n\n```Text\npython -c \"import pydantic.version; print(pydantic.version.version_info())\"\r\n             pydantic version: 2.6.0\r\n        pydantic-core version: 2.16.1\r\n          pydantic-core build: profile=release pgo=true\r\n                 install path: /scratch/twj43146/Programming/event-model-fork/.venv/lib/python3.11/site-packages/pydantic\r\n               python version: 3.11.3 | packaged by conda-forge | (main, Apr  6 2023, 08:57:19) [GCC 11.3.0]\r\n                     platform: Linux-4.18.0-477.21.1.el8_8.x86_64-x86_64-with-glibc2.28\r\n             related packages: typing_extensions-4.9.0 mypy-1.8.0\r\n                       commit: unknown\n```\n\n",
+    "problem_statement_sha256": "43b67b965b128bccfc178a38d352a8a833f764a29e3547a25060a1015538e675",
+    "fail_to_pass_count": 3,
+    "pass_to_pass_count": 361,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "pydantic__pydantic-5624",
+    "repo": "pydantic/pydantic",
+    "base_commit": "75491abf580d7b97a65e2751b0a6f44876d97cd3",
+    "version": "2.03",
+    "problem_statement": "Maximum recursion depth exceeded. Two python dataclasses references each other + one pydantic inheritor.\n### Initial Checks\r\n\r\n- [X] I have searched GitHub for a duplicate issue and I'm sure this is something new\r\n- [X] I have searched Google & StackOverflow for a solution and couldn't find anything\r\n- [X] I have read and followed [the docs](https://pydantic-docs.helpmanual.io) and still think this is a bug\r\n- [X] I am confident that the issue is with pydantic (not my code, or another library in the ecosystem like [FastAPI](https://fastapi.tiangolo.com) or [mypy](https://mypy.readthedocs.io/en/stable))\r\n\r\n\r\n### Description\r\n\r\nI have created basic python schemas via python data classes. \r\nIt's mostly for logical description, I'm not using these schemas directly in the code.\r\n\r\nThen I'm inheriting these schemas to make validation with Pydantic and make my life easiest :)\r\nIn fact, I'm overriding every field after inheritance. Inheritance here mostly marks a logical structure.\r\n\r\nAnd boom, getting maximum recursion depth. \r\nThe key moment: \r\nTwo python data classes use type annotation of each other and then empty Pydantic data just inherit one of the models. That is.\r\n\r\nP.S.  I looked at a few similar questions (https://github.com/pydantic/pydantic/issues/2279#issue-791121103) but I'm not using `update_forward_refs` as it was in both questions.\r\n\r\n### Example Code\r\n\r\n```Python\r\nfrom __future__ import annotations\r\nimport pydantic\r\nimport dataclasses\r\n\r\n\r\n@dataclasses.dataclass\r\nclass Recipe:\r\n    author: Cook\r\n\r\nThe error:\r\n...\r\nRecursionError: maximum recursion depth exceeded while calling a Python object\r\n\r\n\r\n@dataclasses.dataclass\r\nclass Cook:\r\n    recipes: list[Recipe]\r\n\r\n\r\n@pydantic.dataclasses.dataclass\r\nclass Foo(Cook):\r\n    pass\r\n```\r\n\r\n\r\n### Python, Pydantic & OS Version\r\n\r\n```Text\r\npydantic version: 1.10.2\r\npydantic compiled: True\r\ninstall path: /home/david/PycharmProjects/tasti/venv/lib/python3.10/site-packages/pydantic\r\npython version: 3.10.4 (main, Jun 29 2022, 12:14:53) [GCC 11.2.0]\r\nplatform: Linux-5.15.0-47-generic-x86_64-with-glibc2.35\r\noptional deps. installed: ['email-validator', 'typing-extensions']\r\n```\r\n\r\n\r\n### Affected Components\r\n\r\n- [ ] [Compatibility between releases](https://pydantic-docs.helpmanual.io/changelog/)\r\n- [ ] [Data validation/parsing](https://pydantic-docs.helpmanual.io/usage/models/#basic-model-usage)\r\n- [ ] [Data serialization](https://pydantic-docs.helpmanual.io/usage/exporting_models/) - `.dict()` and `.json()`\r\n- [ ] [JSON Schema](https://pydantic-docs.helpmanual.io/usage/schema/)\r\n- [X] [Dataclasses](https://pydantic-docs.helpmanual.io/usage/dataclasses/)\r\n- [ ] [Model Config](https://pydantic-docs.helpmanual.io/usage/model_config/)\r\n- [ ] [Field Types](https://pydantic-docs.helpmanual.io/usage/types/) - adding or changing a particular data type\r\n- [ ] [Function validation decorator](https://pydantic-docs.helpmanual.io/usage/validation_decorator/)\r\n- [ ] [Generic Models](https://pydantic-docs.helpmanual.io/usage/models/#generic-models)\r\n- [ ] [Other Model behaviour](https://pydantic-docs.helpmanual.io/usage/models/) - `construct()`, pickling, private attributes, ORM mode\r\n- [ ] [Plugins](https://pydantic-docs.helpmanual.io/) and integration with other tools - mypy, FastAPI, python-devtools, Hypothesis, VS Code, PyCharm, etc.\n",
+    "problem_statement_sha256": "1575b6e77f777ceea5019c9299a57eb7a56891c66278e33dfae1a344f586c587",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 108,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "pydantic__pydantic-8567",
+    "repo": "pydantic/pydantic",
+    "base_commit": "8060fa1cff965850e5e08a67ca73d5272dcdcf9f",
+    "version": "2.6",
+    "problem_statement": "Annotated type PlainSerializer not used if placed before PlainValidator\n### Initial Checks\n\n- [X] I confirm that I'm using Pydantic V2\n\n### Description\n\nDear pydantic maintainers and community. \r\n\r\nThank you very much for your time, your code and the documentation that comes along. All of them are very useful to me.\r\n\r\nI've encountered a strange behaviour lately: depending of the place of order of PlainValidator and PlainSerializer in a annotated type, the serializer may or may not be used. \r\n\r\nPlease take a look a the code below. I would expect BRight and BWrong to produce the same results. I've tested with some other functions in the serializer and it had the same outcome.\r\n\r\nIs this an intended behaviour ? I could not find any information about that in the documentation, and I apologize in advance if I overlooked.\n\n### Example Code\n\n```Python\nfrom typing import Annotated\r\nfrom pydantic import BaseModel, PlainValidator, PlainSerializer\r\n\r\nBWrong = Annotated[\r\n    bool,\r\n    PlainSerializer(lambda x: str(int(x)), return_type=str),\r\n    PlainValidator(lambda x: bool(int(x))),\r\n]\r\n\r\nBRight = Annotated[\r\n    bool,\r\n    PlainValidator(lambda x: bool(int(x))),\r\n    PlainSerializer(lambda x: str(int(x)), return_type=str),\r\n]\r\n\r\nclass Blah(BaseModel):\r\n\r\n    x: BRight\r\n    y: BWrong\r\n\r\n\r\nblah = Blah(x=0, y=1)\r\nprint(blah.model_dump_json(indent=2))\r\n\r\n\"\"\"\r\nThis produces the following:\r\n$ python test.py\r\n{\r\n  \"x\": \"0\",\r\n  \"y\": true\r\n}\r\n\"\"\"\n```\n\n\n### Python, Pydantic & OS Version\n\n```Text\npydantic version: 2.5.3\r\n        pydantic-core version: 2.14.6\r\n          pydantic-core build: profile=release pgo=true\r\n                 install path: /home/anvil/.local/lib/python3.12/site-packages/pydantic\r\n               python version: 3.12.1 (main, Dec 18 2023, 00:00:00) [GCC 13.2.1 20231205 (Red Hat 13.2.1-6)]\r\n                     platform: Linux-6.6.8-200.fc39.x86_64-x86_64-with-glibc2.38\r\n             related packages: typing_extensions-4.9.0 mypy-1.8.0\r\n\r\n\r\nI can reproduce that on an ubuntu 22.04 system with python 3.10, with the same version of pydantic.\n```\n\n",
+    "problem_statement_sha256": "461ebb56bd5da57fb93663e512352862287925f1b5676ae4cacee3b613838239",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 158,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "pydantic__pydantic-5177",
+    "repo": "pydantic/pydantic",
+    "base_commit": "6dbf87f66bb4a1948d9570d180506881aa5e74b4",
+    "version": "2.0",
+    "problem_statement": "V2: Strict mode for types defined in python\nSee [the \"strict mode\" section of the blog post](https://pydantic-docs.helpmanual.io/blog/pydantic-v2/#strict-mode).\r\n\r\n#4516 implements types for all/most of the types supported in V1.\r\n\r\nBut it doesn't touch the issue of \"strict mode\" at all. We need to:\r\n* modify all types defined in pydantic to make them work correctly in strict mode\r\n* add thorough tests for these\r\n\r\npydantic-core can switch from strict to lax mode at validation time, it doesn't require separate validators, however unfortunately I very much doubt that will be possible in pydantic - many of the schemas will need to be different for strict and lax mode.\r\n\r\nI guess we define models as strict or lax, then add class methods:\r\n* `model_lax()` which creates a lax version of the model\r\n* `model_strict()` which creates a strict version of the model\r\n\r\nThe other option is to build (or optionally) build (perhaps lazily) two validators for a model.\n",
+    "problem_statement_sha256": "70eed7653db65f4d872210b938bd3613ea549c8a790a5dbdb07e1f1660abb3c2",
+    "fail_to_pass_count": 12,
+    "pass_to_pass_count": 915,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "pydantic__pydantic-6043",
+    "repo": "pydantic/pydantic",
+    "base_commit": "d476599cdd956284595034d7d9fd046569a0574c",
+    "version": "2.02",
+    "problem_statement": "Produce best-effort deterministically sorted json schemas\nA lot of our tests, and probably user tests as well, at least via FastAPI, make assertions about the JSON schemas. It is very convenient for the order of keys and items in these schemas to be as deterministic as possible so that tests don't have to change if the schema gets shuffled because of internal refactors. This is especially important when comparing a text representation (like we do in our examples). When comparing as Python objects assertions won't fail (order of dicts does not matter when comparing them for equality) but the diff will change, which is annoying.\r\n\r\nAt the very least we could insert a function at the end of the json schema production that goes through it and recursively sorts keys and items.\n",
+    "problem_statement_sha256": "f0d7a1e733bfd0a6af6384e13af53c94aa713261fe41f8ed906932c2a9955081",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 303,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "conan-io__conan-14616",
+    "repo": "conan-io/conan",
+    "base_commit": "ea6b41b92537a563e478b66be9f5a0c13b0dd707",
+    "version": "2.0",
+    "problem_statement": "[bug]   Spaces in version range can lead to:  IndexError: string index out of range\n### Environment details\n\n* Operating System+version: Ubuntu 22.04\r\n* Compiler+version: N/A\r\n* Conan version: 2.0.10\r\n* Python version: 3.10.8\r\n\r\nThe following version range works:\r\n```\r\n[>=0.0.1 <1.0]\r\n```\r\nThe following does NOT work:\r\n```\r\n[>=0.0.1 < 1.0]\r\n```\r\n\r\nIf a version range has a space after ```<```, we get the following error:\r\n```\r\nERROR: Traceback (most recent call last):\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conan/cli/cli.py\", line 272, in main\r\n    cli.run(args)\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conan/cli/cli.py\", line 172, in run\r\n    command.run(self._conan_api, args[0][1:])\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conan/cli/command.py\", line 125, in run\r\n    info = self._method(conan_api, parser, *args)\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conan/cli/commands/create.py\", line 46, in create\r\n    ref, conanfile = conan_api.export.export(path=path,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conan/api/subapi/export.py\", line 16, in export\r\n    return cmd_export(app, path, name, version, user, channel, graph_lock=lockfile,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/cmd/export.py\", line 20, in cmd_export\r\n    conanfile = loader.load_export(conanfile_path, name, version, user, channel, graph_lock,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/loader.py\", line 144, in load_export\r\n    conanfile = self.load_named(conanfile_path, name, version, user, channel, graph_lock,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/loader.py\", line 98, in load_named\r\n    conanfile, _ = self.load_basic_module(conanfile_path, graph_lock, remotes=remotes,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/loader.py\", line 60, in load_basic_module\r\n    self._pyreq_loader.load_py_requires(conanfile, self, graph_lock, remotes,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/graph/python_requires.py\", line 75, in load_py_requires\r\n    py_requires = self._resolve_py_requires(py_requires_refs, graph_lock, loader, remotes,\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/graph/python_requires.py\", line 93, in _resolve_py_requires\r\n    resolved_ref = self._resolve_ref(requirement, graph_lock, remotes, update)\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/graph/python_requires.py\", line 112, in _resolve_ref\r\n    self._range_resolver.resolve(requirement, \"python_requires\", remotes, update)\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/client/graph/range_resolver.py\", line 18, in resolve\r\n    version_range = require.version_range\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/model/requires.py\", line 171, in version_range\r\n    return VersionRange(version[1:-1])\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/model/version_range.py\", line 107, in __init__\r\n    self.condition_sets.append(_ConditionSet(alternative, prereleases))\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/model/version_range.py\", line 22, in __init__\r\n    self.conditions.extend(self._parse_expression(e))\r\n  File \"/home/antoine/anaconda3/envs/py310/lib/python3.10/site-packages/conans/model/version_range.py\", line 36, in _parse_expression\r\n    if expression[1] == \"=\":\r\nIndexError: string index out of range\r\n\r\nERROR: string index out of range\r\n\r\n```\n\n### Steps to reproduce\n\n_No response_\n\n### Logs\n\n_No response_\n",
+    "problem_statement_sha256": "c887d49987fdb5412ecb9330db86dc267b93d8aeabbe0f97eeb725c0b0903777",
+    "fail_to_pass_count": 2,
+    "pass_to_pass_count": 34,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "conan-io__conan-13326",
+    "repo": "conan-io/conan",
+    "base_commit": "00700331f59e1e01b53315fec786e7f78d7bced2",
+    "version": "2.0",
+    "problem_statement": "[bug] qcc cannot calculate dep graph because it fails to produce a list of compatible cppstd per compiler verison\n### Environment details\n\n* Operating System+version:   Ubuntu 20.04\r\n* Compiler+version:  qcc 8.3.0\r\n* Conan version:  2.0.1\r\n* Python version:   3.8.10\r\n\n\n### Steps to reproduce\n\n### command\r\nconan build -pr:b linux64 -pr:b qnx64 -s build_type=Release --version <package-ver> <conanfile.py location>\r\n\r\n### qnx64 profile\r\n[settings]\r\nos=Neutrino\r\nos.version=7.1\r\narch=x86_64\r\ncompiler=qcc\r\ncompiler.version=8.3\r\ncompiler.libcxx=cxx\r\ncompiler.cppstd=17\r\n\r\n[conf]\r\ntools.build:compiler_executables={'c':'qcc', 'cpp': 'q++'}\r\ntools.build:cflags=[\"-Vgcc_ntox86_64\",\"-fpic\", \"-D__USESRCVERSION\", \"-D_QNX_SOURCE\", \"-DQNX\"]\r\ntools.build:cxxflags=[\"-Vgcc_ntox86_64\", \"-Y _cxx\", \"-std=c++17\", \"-Wc,-isysroot,{{os.getenv('QNX_TARGET')}}\", \"-fpic\", \"-D__USESRCVERSION\", \"-D_QNX_SOURCE\", \"-DQNX\", \"-Wno-deprecated-declarations\", \"-Wno-unused-parameter\", \"-Wno-unused-variable\", \"-Wno-ignored-attributes\"]\r\ntools.build:sharedlinkflags=[\"-Wl,--build-id=md5\"]\r\ntools.cmake.cmaketoolchain:generator=Eclipse CDT4 - Unix Makefiles\r\ntools.cmake.cmaketoolchain:system_name=QNX\r\ntools.cmake.cmaketoolchain:system_processor=x86_64\r\ntools.cmake.cmaketoolchain:system_version=7.1.0\r\ntools.gnu:host_triplet=x86_64-pc-nto-qnx7.1.0\r\ntools.cmake.cmaketoolchain:user_toolchain=[\"{{ os.path.join(profile_dir, \"..\", \"toolchains\", \"qnx_toolchain_preamble.cmake\") }}\"]\r\n\r\n\r\n### linux64 profile\r\n[settings]\r\narch=x86_64\r\nbuild_type=Release\r\ncompiler=gcc\r\ncompiler.cppstd=gnu14\r\ncompiler.libcxx=libstdc++11\r\ncompiler.version=9\r\nos=Linux\r\n\r\n[conf]\r\ntools.system.package_manager:mode=install\r\ntools.system.package_manager:sudo=True\r\n\n\n### Logs\n\n```\r\n======== Computing necessary packages ========\r\nTraceback (most recent call last):\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conan/cli/cli.py\", line 268, in main\r\n    cli.run(args)\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conan/cli/cli.py\", line 167, in run\r\n    command.run(self._conan_api, self._commands[command_argument].parser, args[0][1:])\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conan/cli/command.py\", line 159, in run\r\n    info = self._method(conan_api, parser, *args)\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conan/cli/commands/build.py\", line 46, in build\r\n    conan_api.graph.analyze_binaries(deps_graph, args.build, remotes=remotes, update=args.update,\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conan/api/subapi/graph.py\", line 190, in analyze_binaries\r\n    binaries_analyzer.evaluate_graph(graph, build_mode, lockfile, remotes, update)\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conans/client/graph/graph_binaries.py\", line 330, in evaluate_graph\r\n    self._evaluate_node(node, build_mode)\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conans/client/graph/graph_binaries.py\", line 144, in _evaluate_node\r\n    self._process_compatible_packages(node)\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conans/client/graph/graph_binaries.py\", line 107, in _process_compatible_packages\r\n    compatibles = self._compatibility.compatibles(conanfile)\r\n  File \"/home/tbitz/.local/lib/python3.8/site-packages/conans/client/graph/compatibility.py\", line 80, in compatibles\r\n    plugin_compatibles = self._compatibility(conanfile)\r\n  File \"/home/tbitz/.conan2/extensions/plugins/compatibility/compatibility.py\", line 7, in compatibility\r\n    configs = cppstd_compat(conanfile)\r\n  File \"/home/tbitz/.conan2/extensions/plugins/compatibility/cppstd_compat.py\", line 17, in cppstd_compat\r\n    for _cppstd in cppstd_possible_values:\r\nTypeError: 'NoneType' object is not iterable\r\n\r\n```\n",
+    "problem_statement_sha256": "1ac338a1613bdb0c8f132df2efc34c9944dde3645a96194116c5bd3556533d4c",
+    "fail_to_pass_count": 3,
+    "pass_to_pass_count": 67,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "conan-io__conan-14397",
+    "repo": "conan-io/conan",
+    "base_commit": "aca81fcad474ee783855a40ff6a815ac5662d7db",
+    "version": "2.0",
+    "problem_statement": "Add cli_args argument to cmake.install() \n              > > if self.settings.build_type == 'Release':\r\n> \r\n> Ok, makes sense, though nowadays, I'd expect that `Release` builds already don't contain any debug information to be stripped, I understand it might not be the case for all platforms and tools, so I am ok with making this a opt-in conf.\r\n\r\nFrom https://discourse.cmake.org/t/what-does-strip-do/4302 and if I'm not mistaken, it's not only debug information that gets stripped (if there is any), but also symbols that don't need to be externally visible, so this should have a benefit.\r\n\r\nPR looks good to me, thanks @sagi-ottopia  for your contribution!!!\r\n\r\n@memsharded  one thing I'd consider outside of this PR is adding a `cli_args` argument to `cmake.install()` - to mirror what we have for `cmake.configure()` and `cmake.build()` - while the current setup for install pretty much covers the bases, it may be useful for some advanced users to have the added flexibility\r\n\r\n_Originally posted by @jcar87 in https://github.com/conan-io/conan/pull/14167#pullrequestreview-1516018103_\r\n            \n",
+    "problem_statement_sha256": "9ed064a98efcc828f14a8eccc348c1441d14ba0f01b2d0fe927d1e72558eeb8a",
+    "fail_to_pass_count": 2,
+    "pass_to_pass_count": 2,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "conan-io__conan-14760",
+    "repo": "conan-io/conan",
+    "base_commit": "5353d85bcf18fd3ed2ece151fe8577abfe08bc1b",
+    "version": "2.0",
+    "problem_statement": "[feature] conan remove should have a --dry-run option\n### What is your suggestion?\n\n`conan remove` asks for every package if it really should be deleted. This is really bothersome when removing many packages (e.g. when removing all but the last revision with `conan remove '*#!latest'`). \r\n\r\nHowever, it would be nice to see what is deleted before actually executing `conan remove -c`. It would be nice to have a `--dry-run` option for that use cases.\n\n### Have you read the CONTRIBUTING guide?\n\n- [X] I've read the CONTRIBUTING guide\n",
+    "problem_statement_sha256": "f9cfcf69c1c36b7c6914de9da987d02d1c7953670e4ad83b98d726cda580f0cf",
+    "fail_to_pass_count": 4,
+    "pass_to_pass_count": 106,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "conan-io__conan-15931",
+    "repo": "conan-io/conan",
+    "base_commit": "937bfcc6385ab88384d13fd7aca325386ad31b97",
+    "version": "2.3",
+    "problem_statement": "[feature] Add support for Pop!_OS to package_manager\n### What is your suggestion?\r\n\r\n[Pop!_OS](https://pop.system76.com/) is an Ubuntu-based Linux distribution. It would be great if it could be added to the list of distributions that support `apt-get`. Its `distro.id()` is `pop`.\r\n\r\n### Have you read the CONTRIBUTING guide?\r\n\r\n- [X] I've read the CONTRIBUTING guide\n",
+    "problem_statement_sha256": "0eb520513d159e85bd86ac05e0f326d4ca6a7856762d0af6b70dcbc4e5cd3ef1",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 103,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "dask__dask-7230",
+    "repo": "dask/dask",
+    "base_commit": "1c8b5eafe2be16961472e34fff0c78942f0c6647",
+    "version": "2021.02",
+    "problem_statement": "cumsum for empty partitions fails\n<!-- Please include a self-contained copy-pastable example that generates the issue if possible.\r\n\r\nPlease be concise with code posted. See guidelines below on how to provide a good bug report:\r\n\r\n- Craft Minimal Bug Reports http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports\r\n- Minimal Complete Verifiable Examples https://stackoverflow.com/help/mcve\r\n\r\nBug reports that follow these guidelines are easier to diagnose, and so are often handled much more quickly.\r\n-->\r\n\r\n**What happened**:\r\n\r\nI want to calculate the `.cumsum()` for a DataFrame which has been filtered with some condition. This filter leads to some empty partitions. The calculation fails with the following error\r\n\r\n```python\r\nTraceback (most recent call last):\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\ops\\array_ops.py\", line 142, in _na_arithmetic_op\r\n    result = expressions.evaluate(op, left, right)\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\computation\\expressions.py\", line 235, in evaluate\r\n    return _evaluate(op, op_str, a, b)  # type: ignore[misc]\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\computation\\expressions.py\", line 69, in _evaluate_standard\r\n    return op(a, b)\r\nTypeError: unsupported operand type(s) for +: 'int' and 'NoneType'\r\n\r\nDuring handling of the above exception, another exception occurred:\r\n\r\nTraceback (most recent call last):\r\n  File \"C:\\Users\\rossmar\\Documents\\github\\dask\\issues\\empty-partitions.py\", line 6, in <module>\r\n    ddf[ddf.x > 4].x.cumsum().compute()\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\base.py\", line 281, in compute\r\n    (result,) = compute(self, traverse=False, **kwargs)\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\base.py\", line 563, in compute\r\n    results = schedule(dsk, keys, **kwargs)\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\threaded.py\", line 76, in get\r\n    results = get_async(\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\local.py\", line 487, in get_async\r\n    raise_exception(exc, tb)\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\local.py\", line 317, in reraise\r\n    raise exc\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\local.py\", line 222, in execute_task\r\n    result = _execute_task(task, data)\r\n  File \"C:\\miniforge\\lib\\site-packages\\dask\\core.py\", line 121, in _execute_task\r\n    return func(*(_execute_task(a, cache) for a in args))\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\ops\\common.py\", line 65, in new_method\r\n    return method(self, other)\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\arraylike.py\", line 89, in __add__\r\n    return self._arith_method(other, operator.add)\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\series.py\", line 4995, in _arith_method\r\n    result = ops.arithmetic_op(lvalues, rvalues, op)\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\ops\\array_ops.py\", line 189, in arithmetic_op\r\n    res_values = _na_arithmetic_op(lvalues, rvalues, op)\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\ops\\array_ops.py\", line 149, in _na_arithmetic_op\r\n    result = _masked_arith_op(left, right, op)\r\n  File \"C:\\miniforge\\lib\\site-packages\\pandas\\core\\ops\\array_ops.py\", line 111, in _masked_arith_op\r\n    result[mask] = op(xrav[mask], y)\r\nTypeError: unsupported operand type(s) for +: 'int' and 'NoneType'\r\n```\r\n\r\n**What you expected to happen**:\r\n\r\nCalculation of the cumulative sum.\r\n\r\n**Minimal Complete Verifiable Example**:\r\n\r\n```python\r\nimport dask.dataframe as dd\r\nimport pandas as pd\r\n\r\ndf = pd.DataFrame({'x': [1, 2, 3, 4, 5, 6, 7, 8]})\r\nddf = dd.from_pandas(df, npartitions=4)\r\nddf[ddf.x > 4].x.cumsum().compute()\r\n```\r\n\r\n**Anything else we need to know?**:\r\n\r\nThis bug is similar to #5726 and #4743, the code snippets from that issues seem to work. However the filtering is different.\r\n\r\n**Environment**:\r\n\r\n- Dask version: 2021.2.0\r\n- Python version: 3.8.6\r\n- Operating System: Windows 10 1909\r\n- Install method (conda, pip, source): conda\r\n\n",
+    "problem_statement_sha256": "9b378089f4c7440a63c76cfc29b7fdc51c34aceb042154e9f17895139fba9c06",
+    "fail_to_pass_count": 2,
+    "pass_to_pass_count": 500,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "dask__dask-9627",
+    "repo": "dask/dask",
+    "base_commit": "17f83a4c451f03b3484a4a34b31c44831ff4e654",
+    "version": "2024.4",
+    "problem_statement": "Failure in assignment of `np.ma.masked` to obect-type `Array`\n<!-- Please include a self-contained copy-pastable example that generates the issue if possible.\r\n\r\nPlease be concise with code posted. See guidelines below on how to provide a good bug report:\r\n\r\n- Craft Minimal Bug Reports http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports\r\n- Minimal Complete Verifiable Examples https://stackoverflow.com/help/mcve\r\n\r\nBug reports that follow these guidelines are easier to diagnose, and so are often handled much more quickly.\r\n-->\r\n\r\n**Describe the issue**:\r\n\r\nWhen assigning `np.ma.masked` to a `da.Array` with `object` dtype, a casting TypeError is raised.\r\n\r\nThis arises from a check that means to reasonably stop you from assigning NaN to an integer-type data. The test involves checking the assignment value for NaNs. However, it does this for _all_ non-dask collection values, regardless of the data type of the dask array. Coupled with the fact that an assignment value of the `np.ma.masked` constant is converted to a  scalar masked array, this results in the \"isnan\" test failing when the scalar masked array has object datatype.\r\n\r\nI'm not sure how easy it is to follow that description :),  but I'll put in very short PR which I think will fix this - and will hopefully make things clear!\r\n\r\n\r\n**Minimal Complete Verifiable Example**:\r\n\r\n```python\r\nimport dask.array as da\r\nimport numpy as np\r\nd = da.from_array(np.ma.array(['asd', 'asdssd'],  dtype=object), chunks=2)\r\nd[...] = np.ma.masked\r\n```\r\nProduces:\r\n```python\r\nTypeError                                 Traceback (most recent call last)\r\nInput In [18], in <cell line: 1>()\r\n----> 1 d[...] = np.ma.masked\r\n\r\nFile ~/miniconda3/lib/python3.9/site-packages/dask/array/core.py:1878, in Array.__setitem__(self, key, value)\r\n   1875 if value is np.ma.masked:\r\n   1876     value = np.ma.masked_all((), dtype=self.dtype)\r\n-> 1878 if not is_dask_collection(value) and np.isnan(value).any():\r\n   1879     if issubclass(self.dtype.type, Integral):\r\n   1880         raise ValueError(\"cannot convert float NaN to integer\")\r\n\r\nTypeError: ufunc 'isnan' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''\r\n```\r\n\r\n**Anything else we need to know?**:\r\n\r\n**Environment**:\r\n\r\n- Dask version: 2022.10.0\r\n- Python version: 3.9.12\r\n- Operating System: Linux\r\n- Install method (conda, pip, source): pip\r\n\r\n\n",
+    "problem_statement_sha256": "368f15cca95f71ff3774134be7a43f6d62163e777d0645b53e2841f4d89f9169",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 481,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "dask__dask-8801",
+    "repo": "dask/dask",
+    "base_commit": "9634da11a5a6e5eb64cf941d2088aabffe504adb",
+    "version": "2022.02",
+    "problem_statement": "Dask config fails to load\nHi,\r\nI encounter an issue where I can succesfully install Dask from conda, but fails to import it later. I attached below a minimal example where:\r\n- I highlight at the start conda/python versions\r\n- I create and activate a blank conda environment with python 3.9\r\n- install only dask with `conda install dask`\r\n- run python and try to import dask, with no success.\r\n\r\nAny idea of what is happening? Thanks in advance for your help.\r\nI am on a macbook pro with intel processors.\r\n\r\n```\r\nLast login: [redacted] on ttys001\r\n(base) thibautkobold@[redacted] ~ % conda --version\r\nconda 4.11.0\r\n(base) thibautkobold@[redacted] ~ % which python\r\n[redacted]/anaconda3/bin/python\r\n(base) thibautkobold@[redacted] ~ % python --version\r\nPython 3.9.7\r\n(base) thibautkobold@[redacted] ~ % conda create --name dask-env-py39 python=3.9\r\nCollecting package metadata (current_repodata.json): done\r\nSolving environment: done\r\n\r\n## Package Plan ##\r\n\r\n  environment location: [redacted]/anaconda3/envs/dask-env-py39\r\n\r\n  added / updated specs:\r\n    - python=3.9\r\n\r\n\r\nThe following NEW packages will be INSTALLED:\r\n\r\n  ca-certificates    pkgs/main/osx-64::ca-certificates-2022.2.1-hecd8cb5_0\r\n  certifi            pkgs/main/osx-64::certifi-2021.10.8-py39hecd8cb5_2\r\n  libcxx             pkgs/main/osx-64::libcxx-12.0.0-h2f01273_0\r\n  libffi             pkgs/main/osx-64::libffi-3.3-hb1e8313_2\r\n  ncurses            pkgs/main/osx-64::ncurses-6.3-hca72f7f_2\r\n  openssl            pkgs/main/osx-64::openssl-1.1.1m-hca72f7f_0\r\n  pip                pkgs/main/osx-64::pip-21.2.4-py39hecd8cb5_0\r\n  python             pkgs/main/osx-64::python-3.9.7-h88f2d9e_1\r\n  readline           pkgs/main/osx-64::readline-8.1.2-hca72f7f_1\r\n  setuptools         pkgs/main/osx-64::setuptools-58.0.4-py39hecd8cb5_0\r\n  sqlite             pkgs/main/osx-64::sqlite-3.37.2-h707629a_0\r\n  tk                 pkgs/main/osx-64::tk-8.6.11-h7bc2e8c_0\r\n  tzdata             pkgs/main/noarch::tzdata-2021e-hda174b7_0\r\n  wheel              pkgs/main/noarch::wheel-0.37.1-pyhd3eb1b0_0\r\n  xz                 pkgs/main/osx-64::xz-5.2.5-h1de35cc_0\r\n  zlib               pkgs/main/osx-64::zlib-1.2.11-h4dc903c_4\r\n\r\n\r\nProceed ([y]/n)? y\r\n\r\nPreparing transaction: done\r\nVerifying transaction: done\r\nExecuting transaction: done\r\n#\r\n# To activate this environment, use\r\n#\r\n#     $ conda activate dask-env-py39\r\n#\r\n# To deactivate an active environment, use\r\n#\r\n#     $ conda deactivate\r\n\r\n(base) thibautkobold@[redacted] ~ % conda activate dask-env-py39\r\n(dask-env-py39) thibautkobold@[redacted] ~ % which python\r\n[redacted]/anaconda3/envs/dask-env-py39/bin/python\r\n(dask-env-py39) thibautkobold@[redacted] ~ % python --version\r\nPython 3.9.7\r\n(dask-env-py39) thibautkobold@[redacted] ~ % conda install dask\r\nCollecting package metadata (current_repodata.json): done\r\nSolving environment: done\r\n\r\n## Package Plan ##\r\n\r\n  environment location: [redacted]/anaconda3/envs/dask-env-py39\r\n\r\n  added / updated specs:\r\n    - dask\r\n\r\n\r\nThe following NEW packages will be INSTALLED:\r\n\r\n  blas               pkgs/main/osx-64::blas-1.0-mkl\r\n  bokeh              pkgs/main/osx-64::bokeh-2.4.2-py39hecd8cb5_0\r\n  bottleneck         pkgs/main/osx-64::bottleneck-1.3.2-py39he3068b8_1\r\n  click              pkgs/main/osx-64::click-8.0.4-py39hecd8cb5_0\r\n  cloudpickle        pkgs/main/noarch::cloudpickle-2.0.0-pyhd3eb1b0_0\r\n  cytoolz            pkgs/main/osx-64::cytoolz-0.11.0-py39h9ed2024_0\r\n  dask               pkgs/main/noarch::dask-2021.10.0-pyhd3eb1b0_0\r\n  dask-core          pkgs/main/noarch::dask-core-2021.10.0-pyhd3eb1b0_0\r\n  distributed        pkgs/main/osx-64::distributed-2021.10.0-py39hecd8cb5_0\r\n  freetype           pkgs/main/osx-64::freetype-2.11.0-hd8bbffd_0\r\n  fsspec             pkgs/main/noarch::fsspec-2022.1.0-pyhd3eb1b0_0\r\n  giflib             pkgs/main/osx-64::giflib-5.2.1-haf1e3a3_0\r\n  heapdict           pkgs/main/noarch::heapdict-1.0.1-pyhd3eb1b0_0\r\n  intel-openmp       pkgs/main/osx-64::intel-openmp-2021.4.0-hecd8cb5_3538\r\n  jinja2             pkgs/main/noarch::jinja2-3.0.2-pyhd3eb1b0_0\r\n  jpeg               pkgs/main/osx-64::jpeg-9d-h9ed2024_0\r\n  lcms2              pkgs/main/osx-64::lcms2-2.12-hf1fd2bf_0\r\n  libpng             pkgs/main/osx-64::libpng-1.6.37-ha441bb4_0\r\n  libtiff            pkgs/main/osx-64::libtiff-4.2.0-h87d7836_0\r\n  libwebp            pkgs/main/osx-64::libwebp-1.2.2-h56c3ce4_0\r\n  libwebp-base       pkgs/main/osx-64::libwebp-base-1.2.2-hca72f7f_0\r\n  locket             pkgs/main/osx-64::locket-0.2.1-py39hecd8cb5_1\r\n  lz4-c              pkgs/main/osx-64::lz4-c-1.9.3-h23ab428_1\r\n  markupsafe         pkgs/main/osx-64::markupsafe-2.0.1-py39h9ed2024_0\r\n  mkl                pkgs/main/osx-64::mkl-2021.4.0-hecd8cb5_637\r\n  mkl-service        pkgs/main/osx-64::mkl-service-2.4.0-py39h9ed2024_0\r\n  mkl_fft            pkgs/main/osx-64::mkl_fft-1.3.1-py39h4ab4a9b_0\r\n  mkl_random         pkgs/main/osx-64::mkl_random-1.2.2-py39hb2f4e1b_0\r\n  msgpack-python     pkgs/main/osx-64::msgpack-python-1.0.2-py39hf7b0b51_1\r\n  numexpr            pkgs/main/osx-64::numexpr-2.8.1-py39h2e5f0a9_0\r\n  numpy              pkgs/main/osx-64::numpy-1.21.2-py39h4b4dc7a_0\r\n  numpy-base         pkgs/main/osx-64::numpy-base-1.21.2-py39he0bd621_0\r\n  packaging          pkgs/main/noarch::packaging-21.3-pyhd3eb1b0_0\r\n  pandas             pkgs/main/osx-64::pandas-1.4.1-py39he9d5cce_0\r\n  partd              pkgs/main/noarch::partd-1.2.0-pyhd3eb1b0_0\r\n  pillow             pkgs/main/osx-64::pillow-9.0.1-py39hde71d04_0\r\n  psutil             pkgs/main/osx-64::psutil-5.8.0-py39h9ed2024_1\r\n  pyparsing          pkgs/main/noarch::pyparsing-3.0.4-pyhd3eb1b0_0\r\n  python-dateutil    pkgs/main/noarch::python-dateutil-2.8.2-pyhd3eb1b0_0\r\n  pytz               pkgs/main/noarch::pytz-2021.3-pyhd3eb1b0_0\r\n  pyyaml             pkgs/main/osx-64::pyyaml-6.0-py39hca72f7f_1\r\n  six                pkgs/main/noarch::six-1.16.0-pyhd3eb1b0_1\r\n  sortedcontainers   pkgs/main/noarch::sortedcontainers-2.4.0-pyhd3eb1b0_0\r\n  tblib              pkgs/main/noarch::tblib-1.7.0-pyhd3eb1b0_0\r\n  toolz              pkgs/main/noarch::toolz-0.11.2-pyhd3eb1b0_0\r\n  tornado            pkgs/main/osx-64::tornado-6.1-py39h9ed2024_0\r\n  typing_extensions  pkgs/main/noarch::typing_extensions-3.10.0.2-pyh06a4308_0\r\n  yaml               pkgs/main/osx-64::yaml-0.2.5-haf1e3a3_0\r\n  zict               pkgs/main/noarch::zict-2.0.0-pyhd3eb1b0_0\r\n  zstd               pkgs/main/osx-64::zstd-1.4.9-h322a384_0\r\n\r\n\r\nProceed ([y]/n)? y\r\n\r\nPreparing transaction: done\r\nVerifying transaction: done\r\nExecuting transaction: done\r\n(dask-env-py39) thibautkobold@[redacted] ~ % python\r\nPython 3.9.7 (default, Sep 16 2021, 08:50:36) \r\n[Clang 10.0.0 ] :: Anaconda, Inc. on darwin\r\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information.\r\n>>> import dask\r\nTraceback (most recent call last):\r\n  File \"<stdin>\", line 1, in <module>\r\n  File \"[redacted]/anaconda3/envs/dask-env-py39/lib/python3.9/site-packages/dask/__init__.py\", line 1, in <module>\r\n    from . import config, datasets\r\n  File \"[redacted]/anaconda3/envs/dask-env-py39/lib/python3.9/site-packages/dask/config.py\", line 653, in <module>\r\n    refresh()\r\n  File \"[redacted]/anaconda3/envs/dask-env-py39/lib/python3.9/site-packages/dask/config.py\", line 431, in refresh\r\n    update(config, collect(**kwargs))\r\n  File \"[redacted]/anaconda3/envs/dask-env-py39/lib/python3.9/site-packages/dask/config.py\", line 399, in collect\r\n    return merge(*configs)\r\n  File \"[redacted]/anaconda3/envs/dask-env-py39/lib/python3.9/site-packages/dask/config.py\", line 123, in merge\r\n    update(result, d)\r\n  File \"[redacted]/anaconda3/envs/dask-env-py39/lib/python3.9/site-packages/dask/config.py\", line 91, in update\r\n    for k, v in new.items():\r\nAttributeError: 'str' object has no attribute 'items'\r\n>>> \r\n\r\n```\n",
+    "problem_statement_sha256": "aabbe2d7be9e74814ba710ce5efdebb27ad7a689c86354959e1659277517cc8a",
+    "fail_to_pass_count": 2,
+    "pass_to_pass_count": 41,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "dask__dask-10765",
+    "repo": "dask/dask",
+    "base_commit": "63b6bb84015975c8466e80d1d498a293835ae936",
+    "version": "2023.12",
+    "problem_statement": "Exception from `validate_key` is misleading for composite keys\nWhen validating a key tuple with an invalid component, the exception is currently not helpful for identifying the problem and might even be misleading:\r\n\r\n```python\r\nimport numpy as np\r\nfrom dask.core import validate_key\r\nvalidate_key((1, np.int64(2), 3))\r\n```\r\ncreates the following traceback:\r\n\r\n```\r\nTraceback (most recent call last):\r\n  File \"<stdin>\", line 1, in <module>\r\n  File \"/Users/hendrikmakait/projects/dask/dask/dask/core.py\", line 223, in validate_key\r\n    raise TypeError(f\"Unexpected key type {type(key)} (value: {key!r})\")\r\nTypeError: Unexpected key type <class 'tuple'> (value: (1, 2, 3))\r\n```\r\n\r\nThat is, the exception suggests that `tuple` is an invalid type a key even though it is the _only_ valid type for creating composite keys. The printed key also doesn't give any hint that the `2` is to blame here.\n",
+    "problem_statement_sha256": "e5b12f3edfba850c316344806c902a313dd759805d6d108375bb8d20a30710f3",
+    "fail_to_pass_count": 1,
+    "pass_to_pass_count": 35,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  },
+  {
+    "instance_id": "dask__dask-10734",
+    "repo": "dask/dask",
+    "base_commit": "f9310c440b661f1ae96ffd8726404d3c3fe32edc",
+    "version": "2024.3",
+    "problem_statement": "Switch to different, stable hash algorithm in Bag\nIn #6640, it was pointed out that groupby() doesn't work on non-numerics. The issue: `hash()` is used to group, `hash()` gives different responses for different Python processes. The solution was to set a hash seed.\r\n\r\nUnfortunately, Distributed has the same issue (https://github.com/dask/distributed/issues/4141) and it's harder to solve. E.g. `distributed-worker` without a nanny doesn't have a good way to set a consistent seed.\r\n\r\nGiven that:\r\n\r\n1. Until now groupby was broken for non-numerics and no one noticed. So probably not a huge use case.\r\n2. It's hard to solve this with `hash()`.\r\n\r\nA better approach might be a different hash algorithm. For example, https://deepdiff.readthedocs.io/en/latest/deephash.html.\r\n\r\ndeephash seems promising:\r\n\r\n```python\r\nfrom deepdiff import DeepHash\r\nfrom pprint import pprint\r\n\r\nclass CustomObj:\r\n\r\n    def __init__(self, x):\r\n        self.x = x\r\n\r\n    def __repr__(self):\r\n        return f\"CustomObj({self.x})\"\r\n\r\n\r\nobjects = [\r\n    125,\r\n    \"lalala\",\r\n    (12, 17),\r\n    CustomObj(17),\r\n    CustomObj(17),\r\n    CustomObj(25),\r\n]\r\n\r\nfor o in objects:\r\n    print(repr(o), \"has hash\", DeepHash(o)[o])\r\n```\r\n\r\nResults in:\r\n\r\n```\r\n$ python example.py \r\n125 has hash 08823c686054787db6befb006d6846453fd5a3cbdaa8d1c4d2f0052a227ef204\r\n'lalala' has hash 2307d4a08f50b743ec806101fe5fc4664e0b83c6c948647436f932ab38daadd3\r\n(12, 17) has hash c7129efa5c7d19b0efabda722ae4cd8d022540b31e8160f9c181d163ce4f1bf6\r\nCustomObj(17) has hash 477631cfc0315644152933579c23ed0c9f27743d632613e86eb7e271f6fc86e4\r\nCustomObj(17) has hash 477631cfc0315644152933579c23ed0c9f27743d632613e86eb7e271f6fc86e4\r\nCustomObj(25) has hash 8fa8427d493399d6aac3166331d78e9e2a2ba608c2b3c92a131ef0cf8882be14\r\n```\r\n\r\nDownsides:\r\n\r\n1. This hashing approach, serializing the object to a string and then hashing the string, is probably much more expensive than `hash()`.\r\n2. Custom `__hash__` won't work.\r\n\r\nThat being said, bag has used `hash()` this way for 4 years, maybe more, it's been broken with Distributed the whole time I assume, so probably that second downside is less relevant. Not sure about the performance aspect, though.\n",
+    "problem_statement_sha256": "d5021f891fa7845f480434a60222b45d570bb5251447a4ed4c1208ee1bdeb9fa",
+    "fail_to_pass_count": 5,
+    "pass_to_pass_count": 187,
+    "provenance": {
+      "dataset": "SWE-Gym/SWE-Gym",
+      "split": "train",
+      "seed": "qwen3-swe-rl-swegym-v1"
+    }
+  }
+]

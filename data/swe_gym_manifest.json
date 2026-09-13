@@ -1,0 +1,24 @@
+{
+  "dataset": "SWE-Gym/SWE-Gym",
+  "split": "train",
+  "dataset_fingerprint": null,
+  "seed": "qwen3-swe-rl-swegym-v1",
+  "repos": [
+    "getmoto/moto",
+    "pydantic/pydantic",
+    "conan-io/conan",
+    "dask/dask"
+  ],
+  "excluded_missing_images": 36,
+  "train_count": 100,
+  "internal_dev_count": 20,
+  "smoke_count": 10,
+  "repo_counts": {
+    "getmoto/moto": 30,
+    "pydantic/pydantic": 30,
+    "conan-io/conan": 30,
+    "dask/dask": 30
+  },
+  "private_reference_records": ".private/swe_gym_reference_records.json",
+  "private_reference_records_gitignored": true
+}

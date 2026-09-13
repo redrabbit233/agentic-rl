@@ -1,0 +1,183 @@
+{
+  "source": "SWE-Gym/SWE-Gym",
+  "verifier": "SWE-Bench-Fork eval script on prebuilt SWE-Gym eval image",
+  "validated_count": 8,
+  "tasks": [
+    {
+      "instance_id": "conan-io__conan-10213",
+      "repo": "conan-io/conan",
+      "base_commit": "106e54c96118a1345899317bf3bebaf393c41574",
+      "version": "1.44",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.conan-io_s_conan-10213:latest",
+      "local_image_tag": "sweb.eval.x86_64.conan-io__conan-10213:latest",
+      "image_digest": "sweb.eval.x86_64.conan-io__conan-10213@sha256:9827e590377d050d2b1fb182bc628f1e11ca99f335bfe2b9500f4d95d972bf03",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_conan-io__conan-10213.json",
+        "runtime_seconds": {
+          "base": 3.85,
+          "gold": 3.82,
+          "reset": 3.77
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "conan-io__conan-11799",
+      "repo": "conan-io/conan",
+      "base_commit": "5251fbcabf9b84e4983db93d546999360e2b05a9",
+      "version": "1.52",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.conan-io_s_conan-11799:latest",
+      "local_image_tag": "sweb.eval.x86_64.conan-io__conan-11799:latest",
+      "image_digest": "sweb.eval.x86_64.conan-io__conan-11799@sha256:e90ec369852d7d6691ac6a8f5ac39364168feeb0f3383ebda5bfd5ce0db4d5ae",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_conan-io__conan-11799.json",
+        "runtime_seconds": {
+          "base": 5.67,
+          "gold": 5.93,
+          "reset": 5.57
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "dask__dask-7418",
+      "repo": "dask/dask",
+      "base_commit": "0bc155eca6182eb0ee9bd3d671321e90235d17e5",
+      "version": "2021.03",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.dask_s_dask-7418:latest",
+      "local_image_tag": "sweb.eval.x86_64.dask__dask-7418:latest",
+      "image_digest": "sweb.eval.x86_64.dask__dask-7418@sha256:9bf3d8ce39734238371adf80cf388a0dc85053e043d6347cb4906f8b577eb874",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_dask__dask-7418.json",
+        "runtime_seconds": {
+          "base": 7.26,
+          "gold": 6.28,
+          "reset": 5.77
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "getmoto__moto-6785",
+      "repo": "getmoto/moto",
+      "base_commit": "3545d38595e91a94a38d88661cd314172cb48bef",
+      "version": "4.2",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.getmoto_s_moto-6785:latest",
+      "local_image_tag": "sweb.eval.x86_64.getmoto__moto-6785:latest",
+      "image_digest": "sweb.eval.x86_64.getmoto__moto-6785@sha256:a86d4029df7316d181a1a6c141e781f9b2c28f70f222498b870ff0710be5d28a",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_getmoto__moto-6785.json",
+        "runtime_seconds": {
+          "base": 15.87,
+          "gold": 16.04,
+          "reset": 15.8
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "getmoto__moto-6953",
+      "repo": "getmoto/moto",
+      "base_commit": "9c0724e0d07ff79a0e807d2cbc28a506063dcd13",
+      "version": "4.2",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.getmoto_s_moto-6953:latest",
+      "local_image_tag": "sweb.eval.x86_64.getmoto__moto-6953:latest",
+      "image_digest": "sweb.eval.x86_64.getmoto__moto-6953@sha256:43c1783cfc7a7579887a8558ed31f732a98f8a771b15788b613a5337b40dc027",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_getmoto__moto-6953.json",
+        "runtime_seconds": {
+          "base": 11.63,
+          "gold": 11.82,
+          "reset": 11.69
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "pydantic__pydantic-5529",
+      "repo": "pydantic/pydantic",
+      "base_commit": "8ee553aae909a88df483d6454ed9af58c494879f",
+      "version": "2.02",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.pydantic_s_pydantic-5529:latest",
+      "local_image_tag": "sweb.eval.x86_64.pydantic__pydantic-5529:latest",
+      "image_digest": "sweb.eval.x86_64.pydantic__pydantic-5529@sha256:c807cbfbe7cc5353252098257a3e1d00f22ff3faf7390ff528f1aa8767d0a3fa",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_pydantic__pydantic-5529.json",
+        "runtime_seconds": {
+          "base": 23.51,
+          "gold": 23.33,
+          "reset": 23.46
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "pydantic__pydantic-5591",
+      "repo": "pydantic/pydantic",
+      "base_commit": "f50ae9f282c29e460563829d40d9eeffcf87e479",
+      "version": "2.03",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.pydantic_s_pydantic-5591:latest",
+      "local_image_tag": "sweb.eval.x86_64.pydantic__pydantic-5591:latest",
+      "image_digest": "sweb.eval.x86_64.pydantic__pydantic-5591@sha256:afe8f5b39d5496b020dd115880acb29cbfa372b3f9062d5878ead70b621c23ad",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_pydantic__pydantic-5591.json",
+        "runtime_seconds": {
+          "base": 24.95,
+          "gold": 24.49,
+          "reset": 25.21
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    },
+    {
+      "instance_id": "pydantic__pydantic-5744",
+      "repo": "pydantic/pydantic",
+      "base_commit": "91aaea9f386a3a997f4400ca0d58b2ac064eb09f",
+      "version": "2.04",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.pydantic_s_pydantic-5744:latest",
+      "local_image_tag": "sweb.eval.x86_64.pydantic__pydantic-5744:latest",
+      "image_digest": "sweb.eval.x86_64.pydantic__pydantic-5744@sha256:44d938192e1c9828ac846fa3e55cfef380bc4e513dc6a9b9984eb65498877117",
+      "verification": {
+        "base_hidden_test_patch": "FAIL",
+        "gold_patch": "PASS",
+        "reset_hidden_test_patch": "FAIL",
+        "result_file": "results/swegym_validation_pydantic__pydantic-5744.json",
+        "runtime_seconds": {
+          "base": 22.35,
+          "gold": 21.02,
+          "reset": 22.17
+        }
+      },
+      "network_disabled": true,
+      "patches_excluded_from_agent_data": true
+    }
+  ]
+}
