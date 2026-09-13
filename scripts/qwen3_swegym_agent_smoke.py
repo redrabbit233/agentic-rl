@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 
 import docker
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from swebench.harness.constants import MAP_REPO_VERSION_TO_SPECS
 from swebench.harness.run_validation import get_validation_report
 from swebench.harness.test_spec import TestSpec, make_eval_script_list
@@ -63,7 +63,7 @@ except Exception as e: print("TOOL_ERROR: "+str(e)); sys.exit(2)
 
 @dataclass(frozen=True)
 class Config:
- root: Path; model_path: str|None; docker_socket: str|None; max_turns: int; device: str
+ root: Path; model_path: str|None; docker_socket: str|None; max_turns: int; device: str; device_map: str|None; dtype: str; load_in_4bit: bool
 
 @dataclass(frozen=True)
 class DecodeConfig:
@@ -71,8 +71,8 @@ class DecodeConfig:
 
 def config_from_args() -> tuple[Config,tuple]:
  parser=argparse.ArgumentParser(); root=os.environ.get("AGENTIC_RL_ROOT",str(Path(__file__).resolve().parents[1]))
- parser.add_argument("--project-root",default=root); parser.add_argument("--model-path",default=os.environ.get("QWEN_MODEL_PATH")); parser.add_argument("--docker-socket",default=os.environ.get("DOCKER_HOST")); parser.add_argument("--max-turns",type=int,default=int(os.environ.get("AGENT_MAX_TURNS","15"))); parser.add_argument("--device",default=os.environ.get("AGENT_DEVICE","cuda:0")); parser.add_argument("--tool-sandbox-smoke",action="store_true"); parser.add_argument("--run-rollout",action="store_true"); parser.add_argument("--task-ids",default="conan-io__conan-10213"); parser.add_argument("--output",default=None); parser.add_argument("--summary-output",default=None); parser.add_argument("--samples-per-task",type=int,default=1); parser.add_argument("--do-sample",action="store_true"); parser.add_argument("--temperature",type=float,default=0.7); parser.add_argument("--top-p",type=float,default=0.95); parser.add_argument("--seed-base",type=int,default=20260913)
- a=parser.parse_args(); return Config(Path(a.project_root).resolve(),a.model_path,a.docker_socket,a.max_turns,a.device),(a.tool_sandbox_smoke,a.run_rollout,[x for x in a.task_ids.split(",") if x],a.output,a.summary_output,a.samples_per_task,DecodeConfig(a.do_sample,a.temperature,a.top_p),a.seed_base)
+ parser.add_argument("--project-root",default=root); parser.add_argument("--model-path",default=os.environ.get("QWEN_MODEL_PATH")); parser.add_argument("--docker-socket",default=os.environ.get("DOCKER_HOST")); parser.add_argument("--max-turns",type=int,default=int(os.environ.get("AGENT_MAX_TURNS","15"))); parser.add_argument("--device",default=os.environ.get("AGENT_DEVICE","cuda:0")); parser.add_argument("--device-map",default=os.environ.get("AGENT_DEVICE_MAP")); parser.add_argument("--dtype",default=os.environ.get("AGENT_DTYPE","float16"),choices=("float16","bfloat16")); parser.add_argument("--load-in-4bit",action="store_true"); parser.add_argument("--tool-sandbox-smoke",action="store_true"); parser.add_argument("--model-smoke",action="store_true"); parser.add_argument("--run-rollout",action="store_true"); parser.add_argument("--task-ids",default="conan-io__conan-10213"); parser.add_argument("--output",default=None); parser.add_argument("--summary-output",default=None); parser.add_argument("--samples-per-task",type=int,default=1); parser.add_argument("--do-sample",action="store_true"); parser.add_argument("--temperature",type=float,default=0.7); parser.add_argument("--top-p",type=float,default=0.95); parser.add_argument("--seed-base",type=int,default=20260913)
+ a=parser.parse_args(); return Config(Path(a.project_root).resolve(),a.model_path,a.docker_socket,a.max_turns,a.device,a.device_map,a.dtype,a.load_in_4bit),(a.tool_sandbox_smoke,a.model_smoke,a.run_rollout,[x for x in a.task_ids.split(",") if x],a.output,a.summary_output,a.samples_per_task,DecodeConfig(a.do_sample,a.temperature,a.top_p),a.seed_base)
 
 def spec_for(instance:dict)->TestSpec:
  repo=instance["repo"].lower(); specs=MAP_REPO_VERSION_TO_SPECS[repo][instance["version"]]
@@ -142,9 +142,16 @@ def parse_tool(raw:str)->dict|None:
   except json.JSONDecodeError:pass
  return candidates[-1] if candidates else None
 
+def model_input_device(model):
+ mapping=getattr(model,"hf_device_map",{})
+ for location in mapping.values():
+  if isinstance(location,int): return torch.device(f"cuda:{location}")
+  if isinstance(location,str) and location.startswith("cuda:"): return torch.device(location)
+ return model.device
+
 def generate(model,tokenizer,messages:list[dict],decode:DecodeConfig)->tuple[str,int]:
  prompt=tokenizer.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
- encoded=tokenizer(prompt,return_tensors="pt").to(model.device)
+ encoded=tokenizer(prompt,return_tensors="pt").to(model_input_device(model))
  kwargs={"max_new_tokens":384,"do_sample":decode.do_sample,"pad_token_id":tokenizer.eos_token_id}
  if decode.do_sample: kwargs.update({"temperature":decode.temperature,"top_p":decode.top_p})
  with torch.inference_mode(): output=model.generate(**encoded,**kwargs)
@@ -175,19 +182,31 @@ def run_task(model,tokenizer,public:dict,private:dict,cfg:Config,validated:set[s
   return {"instance_id":public["instance_id"],"sample_index":sample_index,"seed":seed,"messages":messages,"tool_calls":calls,"tool_outputs":outputs,"patch_history":patches,"test_history":tests,"turns":len(calls),"generated_tokens":total_tokens,"wall_time":round(time.monotonic()-started,2),"final_patch":"","hidden_verifier_result":None,"reward":None,"termination_reason":"ENV_ERROR","error":repr(exc)}
  finally:session.close()
 
+def load_model(cfg:Config):
+ dtype={"float16":torch.float16,"bfloat16":torch.bfloat16}[cfg.dtype]
+ kwargs={"trust_remote_code":True,"device_map":cfg.device_map or cfg.device}
+ if cfg.load_in_4bit:
+  kwargs["quantization_config"]=BitsAndBytesConfig(load_in_4bit=True,bnb_4bit_quant_type="nf4",bnb_4bit_compute_dtype=dtype)
+ else: kwargs["torch_dtype"]=dtype
+ tokenizer=AutoTokenizer.from_pretrained(cfg.model_path,trust_remote_code=True)
+ return AutoModelForCausalLM.from_pretrained(cfg.model_path,**kwargs).eval(),tokenizer
+
 def main():
- cfg,options=config_from_args(); smoke,run_rollout,task_ids,output_path,summary_path,samples,decode,seed_base=options
+ cfg,options=config_from_args(); smoke,model_smoke,run_rollout,task_ids,output_path,summary_path,samples,decode,seed_base=options
  if smoke:sandbox_smoke(cfg);return
- if not run_rollout:raise SystemExit("Model rollout paused; pass --run-rollout after sandbox approval")
  if not cfg.model_path:raise SystemExit("--model-path or QWEN_MODEL_PATH required")
+ if not run_rollout and not model_smoke:raise SystemExit("pass --model-smoke or --run-rollout after sandbox approval")
+ model,tokenizer=load_model(cfg)
+ if model_smoke:
+  text,tokens=generate(model,tokenizer,[{"role":"user","content":"Return exactly: model-ready"}],DecodeConfig(False,0.7,0.95))
+  print(json.dumps({"model_smoke_output":text,"generated_tokens":tokens,"device_map":getattr(model,"hf_device_map",{}),"dtype":cfg.dtype,"load_in_4bit":cfg.load_in_4bit}))
+  if not run_rollout:return
  validated={x["instance_id"] for x in json.loads((cfg.root/"data"/"swegym_validated_tasks.json").read_text())["tasks"]}
  if any(x not in validated for x in task_ids):raise SystemExit("all task ids must be in swegym_validated_tasks.json")
  public={x["instance_id"]:x for x in json.loads((cfg.root/"data"/"swe_gym_train_100.json").read_text())}
  private={x["instance_id"]:x for x in json.loads((cfg.root/".private"/"swe_gym_reference_records.json").read_text())}
  missing=[x for x in task_ids if x not in public or x not in private]
  if missing:raise SystemExit(f"task records unavailable: {missing}")
- tokenizer=AutoTokenizer.from_pretrained(cfg.model_path,trust_remote_code=True)
- model=AutoModelForCausalLM.from_pretrained(cfg.model_path,torch_dtype=torch.float16,device_map=cfg.device,trust_remote_code=True).eval()
  out=Path(output_path) if output_path else cfg.root/"trajectories"/"qwen3_base_smoke.jsonl"; out.parent.mkdir(parents=True,exist_ok=True)
  results=[]
  with out.open("w") as handle:
