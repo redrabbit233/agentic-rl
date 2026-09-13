@@ -1,0 +1,15 @@
+{
+  "sft_repo": "SWE-Gym/OpenHands-SFT-Trajectories",
+  "sft_revision": "4aaa5a4a4b5861f4799d2336908760c190ac3b17",
+  "sft_split": "train.success.oss",
+  "swe_gym_repo": "SWE-Gym/SWE-Gym",
+  "swe_gym_revision": "bb94ed9e39bbeb96a7fcbfb533b80f25a7fd59cb",
+  "swe_gym_rows": 2438,
+  "sft_trajectory_count": 491,
+  "exactly_mapped_trajectory_count": 487,
+  "unmatched_trajectory_count": 0,
+  "ambiguous_trajectory_count": 4,
+  "exactly_mapped_unique_instance_count": 290,
+  "sft_seen_unique_instance_count": 296,
+  "mapping_method": "exact normalized equality of public <pr_description> and SWE-Gym problem_statement; ambiguous text matches conservatively exclude every candidate ID; no repo/version heuristic"
+}
