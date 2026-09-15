@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "source": "SWE-Gym/SWE-Gym",
+  "split": "train",
+  "dataset_fingerprint": "3c18e7f6e3af6f68",
+  "purpose": "OpenHands-7B corrected G=1 baseline sanity",
+  "count": 3,
+  "tasks": [
+    {
+      "instance_id": "pydantic__pydantic-5529",
+      "repo": "pydantic/pydantic",
+      "version": "2.02",
+      "base_commit": "8ee553aae909a88df483d6454ed9af58c494879f",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.pydantic_s_pydantic-5529:latest",
+      "image_digest": "sweb.eval.x86_64.pydantic__pydantic-5529@sha256:c807cbfbe7cc5353252098257a3e1d00f22ff3faf7390ff528f1aa8767d0a3fa",
+      "verifier_gate": "FAIL_GOLD-PASS_RESET-FAIL",
+      "network_disabled": true,
+      "in_fixed_train_100": true,
+      "in_internal_dev_20": false,
+      "in_openhands7b_sft_seen_ids": false
+    },
+    {
+      "instance_id": "pydantic__pydantic-5591",
+      "repo": "pydantic/pydantic",
+      "version": "2.03",
+      "base_commit": "f50ae9f282c29e460563829d40d9eeffcf87e479",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.pydantic_s_pydantic-5591:latest",
+      "image_digest": "sweb.eval.x86_64.pydantic__pydantic-5591@sha256:afe8f5b39d5496b020dd115880acb29cbfa372b3f9062d5878ead70b621c23ad",
+      "verifier_gate": "FAIL_GOLD-PASS_RESET-FAIL",
+      "network_disabled": true,
+      "in_fixed_train_100": true,
+      "in_internal_dev_20": false,
+      "in_openhands7b_sft_seen_ids": false
+    },
+    {
+      "instance_id": "getmoto__moto-6785",
+      "repo": "getmoto/moto",
+      "version": "4.2",
+      "base_commit": "3545d38595e91a94a38d88661cd314172cb48bef",
+      "eval_image": "xingyaoww/sweb.eval.x86_64.getmoto_s_moto-6785:latest",
+      "image_digest": "sweb.eval.x86_64.getmoto__moto-6785@sha256:a86d4029df7316d181a1a6c141e781f9b2c28f70f222498b870ff0710be5d28a",
+      "verifier_gate": "FAIL_GOLD-PASS_RESET-FAIL",
+      "network_disabled": true,
+      "in_fixed_train_100": true,
+      "in_internal_dev_20": false,
+      "in_openhands7b_sft_seen_ids": false
+    }
+  ]
+}
